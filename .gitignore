@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Secrets: never commit. Only the example is tracked.
+.env*
+!.env.example
+
+# Personal data written by the app
+data/*
+!data/.gitkeep

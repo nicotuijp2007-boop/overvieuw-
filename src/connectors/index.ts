@@ -1,0 +1,8 @@
+import type { Connector } from "./types";
+import { mock, mockBroken } from "./mock";
+
+/**
+ * All connectors. To add a service: create a file in this folder exporting a Connector,
+ * add it here, and add an entry with the same id to limits.config.ts.
+ */
+export const connectors: Connector[] = [mock, mockBroken];

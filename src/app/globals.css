@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e3e6ea;
+  --text: #16181d;
+  --muted: #5d6470;
+  --track: #e9ecf0;
+  --ok: #1f9d55;
+  --warn: #c98a00;
+  --danger: #d6363b;
+  --accent: #3b5bdb;
+  --danger-bg: #fdecec;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --surface: #171a20;
+    --border: #2a2f38;
+    --text: #e8eaee;
+    --muted: #9aa2ae;
+    --track: #262b33;
+    --ok: #3cc47c;
+    --warn: #e5b332;
+    --danger: #f06468;
+    --accent: #7b93f5;
+    --danger-bg: #3a1c1e;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-track: var(--track);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-accent: var(--accent);
+  --color-danger-bg: var(--danger-bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+input, select, button {
+  font: inherit;
+}
