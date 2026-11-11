@@ -103,14 +103,19 @@ recorded value for the same metric, the newer one is shown.
 Set `NETLIFY_TOKEN` in `.env.local` (and `NETLIFY_ACCOUNT` to a team slug if you're in
 more than one team). The card shows, for the current billing period:
 
-- **Credits**: used / included, from your team's account data (`capabilities.credits`).
+- **Credits**: an **estimate** of credits used, out of your plan's included credits.
+  Netlify's API does return a "credits used" field, but it isn't kept up to date (it said 0
+  while the Usage page said 90). So the card computes production deploys × 15 + bandwidth
+  GB × 10 instead, which matched the Usage page. Usage of functions and requests isn't
+  included. If you use those, check the Usage page now and then, and adjust the rates at
+  the top of `src/connectors/netlify.ts` if needed.
 - **Production deploys**: counted from each site's deploy list.
 - **Bandwidth** and **build minutes**: raw usage, for context.
 
 The credits, bandwidth and build-minute numbers come from endpoints the Netlify dashboard
 uses but that aren't in Netlify's public API reference, so they could change without notice.
 If the card errors after a Netlify update, that's the likely cause. Check the credits value
-against your team's **Usage** page once; if they differ, enter the correct value manually.
+against your team's **Usage** page now and then.
 
 ## Manual entries
 

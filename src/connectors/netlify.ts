@@ -9,8 +9,17 @@ import type { Connector, UsageMetric } from "./types";
  *   GET /accounts/{slug}/bandwidth       -> { used (bytes), included, period_end_date }
  *   GET /{account_id}/builds/status      -> { minutes: { current, included_minutes } }
  * Production deploys are counted from the documented GET /sites/{id}/deploys.
+ * Credits used are estimated from deploys + bandwidth (see below).
  */
 const API = "https://api.netlify.com/api/v1";
+
+/**
+ * Credit prices on credit-based plans. 15 per production deploy matched the Usage page
+ * (6 deploys = 90 credits). The bandwidth rate is from Netlify's pricing; check
+ * docs.netlify.com > "How credits work" if your Usage page and the card drift apart.
+ */
+const CREDITS_PER_DEPLOY = 15;
+const CREDITS_PER_GB = 10;
 
 async function get<T>(path: string, token: string): Promise<T> {
   let res: Response;
@@ -88,17 +97,22 @@ export const netlify: Connector = {
     const base = { service: "netlify", source: "api" as const, fetchedAt, resetsAt };
     const metrics: UsageMetric[] = [];
 
-    const credits = account.capabilities?.credits;
-    if (credits && typeof credits.used === "number") {
-      metrics.push({
-        ...base,
-        metric: "Credits",
-        used: credits.used,
-        limit: typeof credits.included === "number" ? credits.included : null,
-        unit: "credits",
-        note: exceeded ?? "As reported by Netlify's API. Compare with the Usage page in the Netlify dashboard.",
-      });
-    }
+    // capabilities.credits.used is not kept up to date (it reported 0 while the Usage page
+    // showed 90 used), so credits are estimated from what the API does report accurately.
+    const bandwidthGb = bandwidth.used / 1_000_000_000;
+    const estimate = Math.round(deploys * CREDITS_PER_DEPLOY + bandwidthGb * CREDITS_PER_GB);
+    const reported = account.capabilities?.credits;
+    const included = typeof reported?.included === "number" ? reported.included : null;
+    metrics.push({
+      ...base,
+      metric: "Credits",
+      used: Math.max(estimate, reported?.used ?? 0),
+      limit: included,
+      unit: "credits",
+      note:
+        exceeded ??
+        `Estimate: ${deploys} deploys × ${CREDITS_PER_DEPLOY} + bandwidth × ${CREDITS_PER_GB}/GB. Excludes function and request usage.`,
+    });
     metrics.push(
       { ...base, metric: "Production deploys", used: deploys, limit: null, unit: "deploys", note: "This billing period" },
       { ...base, metric: "Bandwidth", used: Math.round((bandwidth.used / 1_000_000) * 10) / 10, limit: bandwidth.included ? bandwidth.included / 1_000_000 : null, unit: "MB" },
