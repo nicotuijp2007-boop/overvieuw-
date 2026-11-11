@@ -6,7 +6,7 @@ password, so you can open it from any computer or phone. Data that only exists o
 computers (Claude Code logs and plan limits) is sent to it by a small sync script.
 
 > **Status:** dashboard, manual entries, Claude, Netlify and Supabase connectors, hosting
-> on Netlify. n8n is planned for when you start using it; history and trend charts are next.
+> on Netlify, an iPhone/Mac widget and the dashboard as a home-screen app. n8n is planned for when you start using it; history and trend charts are next.
 
 ## How it works
 
@@ -27,9 +27,13 @@ limits.config.ts          your plan caps, one entry per service (edit by hand)
 src/connectors/           one file per service + index.ts (the list) + types.ts
 src/lib/runner.ts         runs all connectors in parallel, merges manual values, fills limits
 src/lib/db.ts             Postgres connection; creates the usage_dashboard tables on first use
-src/proxy.ts              password prompt in front of everything except /api/ingest/
+src/proxy.ts              login (cookie or Basic auth) in front of everything except /api/ingest/, /api/widget
+src/lib/present.ts        the Dutch texts and the order of the limits, shared by the page and /api/widget
 src/app/page.tsx          the dashboard
+src/app/login             login page for the home-screen app (cookie, 30 days); /logout to log out
 src/app/api/ingest/claude receives data from the sync script
+src/app/api/widget        read-only JSON for the widget (WIDGET_TOKEN); docs/prompts/widget-api-contract.md
+widgets/scriptable        the iPhone/Mac widget (Scriptable), with Node tests: npm run test:widget
 scripts/statusline.mjs    Claude Code status line: records plan limits, triggers the sync
 scripts/sync-claude.mjs   sends Claude Code usage + plan limits to the dashboard
 ```
@@ -94,8 +98,10 @@ Use one output as `INGEST_SECRET` (shared with your computers). Choose a
    | `DASHBOARD_TIMEZONE` | recommended, e.g. `Europe/Amsterdam` (Netlify runs in UTC) |
    | `NETLIFY_TOKEN` | for the Netlify card |
    | `SUPABASE_TOKEN` | for the Supabase card |
+   | `WIDGET_TOKEN` | for the widget (see **Widget op iPhone en Mac**) |
+   | `SESSION_SECRET` | for the login page / home-screen app; without it only the Basic auth prompt works |
 
-4. Deploy. Open the site; the browser asks for a username (anything) and the password.
+4. Deploy. Open the site and log in with the password.
 
 Page loads also use a little of your Netlify credits (function compute and requests),
 which the Netlify card's estimate doesn't include.
@@ -133,6 +139,91 @@ password. Point `DASHBOARD_URL` at `http://localhost:3000` to sync to the local 
 
 The two demo cards (`mock`, and `mock-broken` to show how errors look) are off; set
 `enabled: true` for them in `limits.config.ts` to see them.
+
+## Widget op iPhone en Mac
+
+Een widget die in één oogopslag laat zien hoeveel je nog over hebt, meest urgent eerst, met
+dezelfde teksten als het dashboard. Hij draait in de gratis app **Scriptable** en leest
+`/api/widget` met een eigen, alleen-lezen sleutel (`WIDGET_TOKEN`). Je wachtwoord en de tokens
+van Netlify en Supabase komen niet op je telefoon.
+
+| Formaat | Wat je ziet |
+|---|---|
+| Klein | De meest urgente limiet: "% over" groot, status (icoon + woord), naam, wanneer hij op is |
+| Middel | De 3 meest urgente limieten, met een dunne balk van wat er over is |
+| Groot | Alle limieten (tot 7), de kopregel van het dashboard en "Bijgewerkt hh:mm" |
+| Vergrendelscherm | Rechthoek: de meest urgente limiet met status; rond: "% over" |
+
+De widget ververst ongeveer elke 15 minuten (iOS bepaalt het precieze moment). Lukt verversen
+niet, dan toont hij de laatste gegevens met "niet ververst · hh:mm". Tik erop om het dashboard
+te openen.
+
+### 1. Widgettoken maken en in Netlify zetten
+
+1. Maak een sterke token. Op de iPhone: app **Wachtwoorden** → **+** → website
+   `usage-dashboard-e00568.netlify.app` (jouw site), gebruikersnaam `widget`, en kies het
+   voorgestelde sterke wachtwoord. Op de Mac kan ook: `openssl rand -hex 32` in Terminal.
+   Bewaar hem in Wachtwoorden; zet hem niet in een chat, mail of gewone notitie.
+2. Netlify → je site → **Site configuration** → **Environment variables** → **Add a variable**
+   → **Add a single variable**. Key `WIDGET_TOKEN`, value de token (vink **Contains secret
+   values** aan als die optie er is) → **Create variable**.
+3. Een variabele werkt pas na de volgende deploy.
+
+### 2. Scriptable instellen (iPhone)
+
+1. Installeer **Scriptable** uit de App Store.
+2. Open `widgets/scriptable/usage-widget.js` in deze repo op GitHub, tik op **Raw** en kopieer
+   alles.
+3. Scriptable → **+** → plak → tik bovenaan op de naam en noem het script `Limieten`.
+4. Tik op ▶︎. Vul de URL van je dashboard in (`https://usage-dashboard-e00568.netlify.app`) en
+   plak de token (uit Wachtwoorden). Ze worden bewaard in de sleutelhanger van Scriptable.
+5. Kies **Voorbeeld middel** om te zien of het werkt. Zie je "Token onjuist", controleer dan
+   de token in Netlify en of er daarna gedeployd is.
+
+Later wijzigen of wissen: open het script in Scriptable → ▶︎ → **Instellingen wijzigen of
+wissen**. Laat het tokenveld leeg om de huidige token te houden.
+
+### 3. Widget toevoegen
+
+- **Beginscherm:** houd een lege plek ingedrukt → **Wijzig** → **Voeg widget toe** → zoek
+  **Scriptable** → kies klein, middel of groot → **Voeg widget toe**. Tik daarna op de widget
+  (in wiebelmodus) → **Script**: `Limieten`. Tikken op de widget opent altijd het dashboard;
+  **When Interacting** hoef je niet in te stellen.
+- **Vergrendelscherm:** houd het vergrendelscherm ingedrukt → **Pas aan** → **Toegangsscherm**
+  → tik op het widgetvak → **Scriptable** → rechthoek of rond → tik erop en kies `Limieten`.
+- **Mac** (macOS Sonoma of nieuwer, met dezelfde Apple-account en de iPhone in de buurt of op
+  hetzelfde wifi): klik rechts op het bureaublad → **Wijzig widgets** → kies links
+  **iPhone-widgets** (of zoek **Scriptable**) → sleep de widget naar het bureaublad. Zie je
+  geen iPhone-widgets: Systeeminstellingen → **Bureaublad en Dock** → zet **Gebruik
+  iPhone-widgets** aan.
+
+### Dashboard op het beginscherm
+
+1. Open het dashboard in **Safari** op je iPhone.
+2. Tik op de deelknop (vierkant met pijl) → **Zet op beginscherm** → **Voeg toe**. Het icoon
+   heet "Limieten".
+3. Open het via het icoon en log één keer in met je dashboardwachtwoord. Je blijft 30 dagen
+   ingelogd op dat toestel. Uitloggen: open `/logout` (bijv. in Safari:
+   `https://usage-dashboard-e00568.netlify.app/logout`; in de app zelf is er geen adresbalk).
+
+Waarom een loginpagina: in een app op het beginscherm toont iOS de inlogvraag van de browser
+(Basic auth) niet betrouwbaar en onthoudt hij hem niet. Daarom zet `/login` een cookie
+(alleen via HTTPS, niet leesbaar voor scripts, ondertekend met `SESSION_SECRET`). Basic auth
+blijft werken voor scripts en curl. Dit vraagt één extra variabele in Netlify:
+`SESSION_SECRET` (maak hem zoals de widgettoken). Zonder die variabele werkt alles zoals
+vroeger, alleen niet de loginpagina.
+
+### Token vervangen (roteren)
+
+Doe dit als je telefoon kwijt is of als de token ergens terecht is gekomen waar hij niet hoort.
+
+1. Maak een nieuwe token (zie stap 1) en vervang de waarde van `WIDGET_TOKEN` in Netlify.
+2. Deploy. Vanaf dat moment werkt de oude token niet meer: de widget toont "Token onjuist"
+   (of de laatste gegevens met "niet ververst").
+3. In Scriptable: ▶︎ → **Instellingen wijzigen of wissen** → plak de nieuwe token → **Opslaan**.
+
+Alle apparaten uitloggen bij het dashboard: vervang `SESSION_SECRET` (of je wachtwoord) en
+deploy.
 
 ## Claude (Pro)
 
@@ -258,6 +349,7 @@ never logs tokens. On Netlify, secrets go in the site's environment variables.
 | `SUPABASE_TOKEN` | supabase.com/dashboard → avatar → Account preferences → Access Tokens (scoped, read-only) |
 | `DATABASE_URL` | Supabase → Connect → Transaction pooler |
 | `DASHBOARD_PASSWORD`, `INGEST_SECRET` | you choose them (see Setup) |
+| `WIDGET_TOKEN`, `SESSION_SECRET` | you make them: `openssl rand -hex 32`, or a strong password from the iPhone Passwords app |
 | `N8N_API_KEY` (planned) | your n8n instance → Settings → n8n API |
 
 ## Adding a new connector
