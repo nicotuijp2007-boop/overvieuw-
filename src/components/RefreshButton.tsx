@@ -49,7 +49,7 @@ export function RefreshButton() {
         onClick={refresh}
         disabled={pending}
         aria-busy={pending}
-        className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium hover:border-accent disabled:cursor-wait disabled:opacity-70"
+        className="glass inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium hover:border-accent disabled:cursor-wait disabled:opacity-70"
       >
         <svg viewBox="0 0 16 16" className={`h-3.5 w-3.5 ${pending ? "animate-spin" : ""}`} aria-hidden>
           <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

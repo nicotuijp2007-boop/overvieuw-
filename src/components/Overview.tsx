@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Level } from "@/lib/format";
 import type { Headroom } from "@/lib/headroom";
-import { leftText, urgencyText } from "./LimitList";
+import { leftText, urgencyText } from "@/lib/present";
+import { serviceLook } from "@/lib/services";
+import { ServiceIcon } from "./ServiceIcon";
 import { STATUS, StatusIcon } from "./Status";
 
 /**
@@ -30,7 +32,8 @@ export function Overview({
   else if (attention) {
     headline = (
       <>
-        <StatusIcon level={top.level} className="h-5 w-5" />
+        <StatusIcon level={top.level} className="mt-0.5 h-5 w-5" />
+        <ServiceIcon icon={serviceLook(top.metric.service).icon} color={serviceLook(top.metric.service).color} size={22} />
         <span>
           <span className="font-semibold">
             {top.serviceName} · {top.metric.metric}
@@ -45,7 +48,7 @@ export function Overview({
   } else {
     headline = (
       <>
-        <StatusIcon level="ok" className="h-5 w-5" />
+        <StatusIcon level="ok" className="mt-0.5 h-5 w-5" />
         <span>
           <span className="font-semibold">Alles binnen marge</span>{" "}
           <span className="text-secondary">
@@ -57,7 +60,7 @@ export function Overview({
   }
 
   return (
-    <section className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-border bg-surface px-5 py-4">
+    <section className="glass flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-3xl px-5 py-4">
       <div className="min-w-0 flex-1 basis-72">
         <p className="flex items-start gap-2">{headline}</p>
         {problems.length > 0 && (
@@ -84,7 +87,7 @@ export function Overview({
                   aria-pressed={active}
                   title={`${STATUS[level].label}: ${STATUS[level].rule}. Klik om te filteren.`}
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors hover:border-accent ${
-                    active ? "border-accent ring-1 ring-accent" : "border-border"
+                    active ? "border-accent bg-[var(--glass)] ring-1 ring-accent" : "border-[var(--glass-line)] bg-[var(--glass)]"
                   }`}
                 >
                   <StatusIcon level={level} className="h-3.5 w-3.5" />

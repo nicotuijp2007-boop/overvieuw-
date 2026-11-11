@@ -22,9 +22,18 @@ export interface MetricLimit {
   period?: "month" | "week" | "day";
 }
 
+/** Simple built-in icons (no official logos). Add one in src/components/ServiceIcon.tsx. */
+export type ServiceIconName = "spark" | "database" | "globe" | "flow" | "box";
+
 export interface ServiceConfig {
   /** Display name on the card. */
   name: string;
+  /**
+   * Identity color (hex) for the service's icon and its rings while OK. Pick something that
+   * isn't green, yellow or red: those mean OK / Let op / Kritiek.
+   */
+  color: string;
+  icon: ServiceIconName;
   /** Set to false to hide the card and skip fetching. */
   enabled: boolean;
   limits: Record<string, MetricLimit>;
@@ -35,6 +44,8 @@ export const services: Record<string, ServiceConfig> = {
   // Set enabled: false once your real connectors work.
   mock: {
     name: "Mock service",
+    color: "#7c6cf0",
+    icon: "box",
     enabled: false,
     limits: {
       "Requests": { limit: 10_000, unit: "requests", where: "Made up, for the demo." },
@@ -45,12 +56,16 @@ export const services: Record<string, ServiceConfig> = {
   // Always throws, to show that one broken connector only breaks its own card.
   "mock-broken": {
     name: "Broken mock",
+    color: "#8a8f98",
+    icon: "box",
     enabled: false,
     limits: {},
   },
 
   claude: {
     name: "Claude (Pro)",
+    color: "#e0734f",
+    icon: "spark",
     enabled: true,
     limits: {
       // Claude only reports these as percentages, so the limit is 100.
@@ -62,6 +77,8 @@ export const services: Record<string, ServiceConfig> = {
 
   supabase: {
     name: "Supabase (Free)",
+    color: "#14a394",
+    icon: "database",
     enabled: true,
     limits: {
       "Databasegrootte": { limit: 500, unit: "MB", where: "supabase.com/pricing, Free plan > Database size" },
@@ -74,6 +91,8 @@ export const services: Record<string, ServiceConfig> = {
 
   netlify: {
     name: "Netlify (Free)",
+    color: "#5b5bd6",
+    icon: "globe",
     enabled: true,
     limits: {
       // Free is a credit-based plan: deploys, bandwidth, compute etc. all draw from one credit pool.
@@ -85,6 +104,8 @@ export const services: Record<string, ServiceConfig> = {
   // Not in use yet, and there's no connector yet: see "n8n (planned)" in the README.
   n8n: {
     name: "n8n (self-hosted)",
+    color: "#d9488b",
+    icon: "flow",
     enabled: false,
     // Self-hosted Community Edition has no execution quota. Executions will be counted for info only.
     limits: {},

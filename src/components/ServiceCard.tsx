@@ -3,6 +3,8 @@ import type { Source } from "@/connectors/types";
 import { compactNumber, formatClock, formatDateTime, freshness, timeAgo, type Level } from "@/lib/format";
 import type { Headroom } from "@/lib/headroom";
 import type { ServiceResult } from "@/lib/runner";
+import { serviceLook } from "@/lib/services";
+import { ServiceIcon } from "./ServiceIcon";
 import { STATUS, StatusIcon } from "./Status";
 
 const order: Level[] = ["danger", "warn", "ok"];
@@ -54,9 +56,10 @@ export function ServiceCard({ result, limits, now }: { result: ServiceResult; li
   }
 
   return (
-    <section className="flex flex-col rounded-xl border border-border bg-surface p-5">
+    <section className="glass flex flex-col rounded-3xl p-5">
       <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <ServiceIcon icon={serviceLook(result.id).icon} color={serviceLook(result.id).color} size={34} />
+        <div className="min-w-0 flex-1">
           <h2 className="font-semibold">{result.name}</h2>
           <div className="mt-0.5 flex items-center gap-1.5 text-xs text-secondary">{status}</div>
         </div>
@@ -68,7 +71,7 @@ export function ServiceCard({ result, limits, now }: { result: ServiceResult; li
       </header>
 
       {result.error && (
-        <div className="mt-3 rounded-lg border border-border px-3 py-2 text-xs">
+        <div className="mt-3 rounded-2xl border border-[var(--glass-line)] bg-[var(--glass)] px-3 py-2 text-xs">
           <p className="text-secondary">
             {result.staleSince
               ? `Kon niet verversen, waarden van ${formatClock(result.staleSince, now)}.`

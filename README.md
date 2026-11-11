@@ -300,6 +300,8 @@ never logs tokens. On Netlify, secrets go in the site's environment variables.
    ```ts
    example: {
      name: "Example (Free)",
+     color: "#8b5cf6",   // identity color for its icon and rings (not green/yellow/red)
+     icon: "box",        // spark | database | globe | flow | box (src/components/ServiceIcon.tsx)
      enabled: true,
      limits: {
        "Requests": { limit: 10_000, unit: "requests", where: "example.com/pricing" },

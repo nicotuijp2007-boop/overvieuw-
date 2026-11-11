@@ -4,7 +4,7 @@
 export default function Error({ reset }: { error: Error; reset: () => void }) {
   return (
     <main className="mx-auto max-w-5xl px-4 py-16">
-      <div className="rounded-xl border border-border bg-surface p-6">
+      <div className="glass rounded-3xl p-6">
         <h1 className="text-lg font-semibold">Het dashboard kon niet laden</h1>
         <p className="mt-1 text-sm text-secondary">
           Waarschijnlijk duurde een bron te lang of was er even geen verbinding. Probeer het opnieuw.
@@ -12,7 +12,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
         <button
           type="button"
           onClick={reset}
-          className="mt-4 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-surface"
+          className="mt-4 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white"
         >
           Opnieuw proberen
         </button>

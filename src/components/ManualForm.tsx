@@ -11,7 +11,7 @@ interface Props {
   metricNames: Record<string, string[]>;
 }
 
-const input = "w-full rounded-md border border-border bg-input-bg px-2 py-1.5 text-sm";
+const input = "w-full rounded-xl border border-[var(--glass-line)] bg-input-bg px-2.5 py-1.5 text-sm";
 
 export function ManualForm({ services, entries, metricNames }: Props) {
   const details = useRef<HTMLDetailsElement>(null);
@@ -53,7 +53,7 @@ export function ManualForm({ services, entries, metricNames }: Props) {
   const nameOf = (id: string) => services.find((s) => s.id === id)?.name ?? id;
 
   return (
-    <details ref={details} id="handmatig" className="group mt-10 scroll-mt-4 rounded-xl border border-border bg-surface">
+    <details ref={details} id="handmatig" className="glass group mt-8 scroll-mt-4 rounded-3xl">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
         <span>
           <span className="font-semibold">Handmatige waarden</span>
@@ -63,7 +63,7 @@ export function ManualForm({ services, entries, metricNames }: Props) {
         </span>
         <span aria-hidden className="text-muted transition-transform group-open:rotate-180">▾</span>
       </summary>
-      <div className="border-t border-border px-5 pb-5 pt-4">
+      <div className="border-t border-[var(--glass-line)] px-5 pb-5 pt-4">
         <p className="text-sm text-muted">
           Dezelfde dienst + naam opnieuw opslaan werkt de waarde bij. Opgeslagen in je Supabase-database.
         </p>
@@ -106,7 +106,7 @@ export function ManualForm({ services, entries, metricNames }: Props) {
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-60"
+              className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-white shadow-sm disabled:opacity-60"
             >
               Opslaan
             </button>

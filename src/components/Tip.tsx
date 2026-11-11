@@ -40,8 +40,8 @@ export function Tip({
       <span
         id={id}
         role="tooltip"
-        className={`pointer-events-none absolute bottom-full z-20 mb-2 w-max max-w-60 rounded-md bg-text px-2.5 py-1.5 text-xs font-normal leading-snug text-surface shadow-lg transition-opacity ${pos} ${
-          open ? "visible opacity-100" : "invisible opacity-0 group-hover/tip:visible group-hover/tip:opacity-100 group-focus-visible/tip:visible group-focus-visible/tip:opacity-100"
+        className={`pointer-events-none absolute bottom-full z-20 mb-2 w-max max-w-56 rounded-lg bg-text px-2.5 py-1.5 text-xs font-normal leading-snug text-surface shadow-lg ${pos} ${
+          open ? "block" : "hidden group-hover/tip:block group-focus-visible/tip:block"
         }`}
       >
         {text}

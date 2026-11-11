@@ -22,7 +22,19 @@
   /* OK bars are muted (gray-green on a neutral track) so only Let op / Kritiek draw the eye. */
   --ok-muted: color-mix(in oklab, var(--ok) 42%, #a3a29b);
   --ok-track: #e9e8e2;
-  --input-bg: #ffffff;
+  --input-bg: rgba(255, 255, 255, 0.75);
+  /* Glass cards on a soft gradient. --glass-solid approximates the card color (for outlines). */
+  --glass: rgba(255, 255, 255, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-line: rgba(11, 11, 11, 0.07);
+  --glass-solid: #f7f7fa;
+  --glass-shadow: 0 1px 1px rgba(16, 24, 64, 0.04), 0 10px 30px -8px rgba(31, 38, 135, 0.14);
+  --page-gradient:
+    radial-gradient(60rem 40rem at 8% -5%, #ffd8c8 0%, transparent 60%),
+    radial-gradient(55rem 40rem at 95% 0%, #cfe0ff 0%, transparent 60%),
+    radial-gradient(50rem 45rem at 80% 95%, #e2d6ff 0%, transparent 60%),
+    radial-gradient(45rem 40rem at 0% 100%, #c9f1e9 0%, transparent 60%),
+    #f3f4f9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,7 +55,18 @@
     --danger-text: #ffa3a3;
     --ok-muted: color-mix(in oklab, var(--ok) 42%, #5c5b56);
     --ok-track: #2a2a28;
-    --input-bg: #0d0d0d;
+    --input-bg: rgba(0, 0, 0, 0.35);
+    --glass: rgba(30, 32, 44, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.09);
+    --glass-line: rgba(255, 255, 255, 0.08);
+    --glass-solid: #1c1e29;
+    --glass-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 12px 32px -10px rgba(0, 0, 0, 0.6);
+    --page-gradient:
+      radial-gradient(60rem 40rem at 8% -5%, #4a2230 0%, transparent 60%),
+      radial-gradient(55rem 40rem at 95% 0%, #162a5c 0%, transparent 60%),
+      radial-gradient(50rem 45rem at 80% 95%, #2e1d57 0%, transparent 60%),
+      radial-gradient(45rem 40rem at 0% 100%, #0f3b37 0%, transparent 60%),
+      #0b0c14;
   }
 }
 
@@ -80,4 +103,23 @@ input, select, button {
 
 summary::-webkit-details-marker {
   display: none;
+}
+
+/* A frosted-glass card. */
+@utility glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+}
+
+/* The soft gradient sits on a fixed layer behind the page (iOS ignores background-attachment: fixed). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--page-gradient);
+  pointer-events: none;
 }

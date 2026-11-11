@@ -58,7 +58,7 @@ export default async function ClaudeCodePage() {
       )}
 
       <h2 className="mt-8 mb-2 font-semibold">Per dag (laatste 30 dagen met activiteit)</h2>
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+      <div className="glass overflow-x-auto rounded-3xl">
         <table className="w-full text-sm">
           <thead className="border-b border-border">
             <tr>
@@ -85,7 +85,7 @@ export default async function ClaudeCodePage() {
       </div>
 
       <h2 className="mt-8 mb-2 font-semibold">Recente sessies</h2>
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+      <div className="glass overflow-x-auto rounded-3xl">
         <table className="w-full text-sm">
           <thead className="border-b border-border">
             <tr>

@@ -48,18 +48,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
     <main className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Gebruikslimieten</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Gebruikslimieten</h1>
           <p className="text-sm text-muted">Opgehaald {formatDateTime(nowIso)}</p>
         </div>
         <RefreshButton />
       </header>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         <Overview items={allLimits} now={now} problems={problems} filter={filter} />
         <LimitList items={allLimits} now={now} sparks={sparks} filter={filter} />
       </div>
 
-      <h2 className="mt-10 mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Diensten</h2>
+      <h2 className="mt-10 mb-3 px-1 text-lg font-semibold">Diensten</h2>
       <div className="grid gap-4 md:grid-cols-3">
         {results.map((r) => (
           <ServiceCard key={r.id} result={r} limits={limitsByService.get(r.id) ?? []} now={now} />
