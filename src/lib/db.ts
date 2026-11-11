@@ -74,6 +74,23 @@ create table if not exists usage_dashboard.snapshots (
   resets_at     timestamptz
 );
 create index if not exists snapshots_metric_time on usage_dashboard.snapshots (service, metric, fetched_at desc);
+
+-- This dashboard's own function runs per day (UTC) and route: how often, and how long in total.
+-- Netlify doesn't report compute or requests via its API, so they're estimated from this.
+create table if not exists usage_dashboard.invocations (
+  day    date not null,
+  route  text not null,
+  count  integer not null default 0,
+  ms     bigint not null default 0,
+  primary key (day, route)
+);
+
+-- Small key/value cache, e.g. the last /api/widget response.
+create table if not exists usage_dashboard.cache (
+  key         text primary key,
+  value       jsonb not null,
+  updated_at  timestamptz not null default now()
+);
 `;
 
 function connect(): postgres.Sql {

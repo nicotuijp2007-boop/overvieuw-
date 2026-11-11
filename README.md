@@ -152,7 +152,9 @@ van Netlify en Supabase komen niet op je telefoon.
 | Groot | Alle limieten (tot 7), de kopregel van het dashboard en "Bijgewerkt hh:mm" |
 | Vergrendelscherm | Rechthoek: de meest urgente limiet met status; rond: "% over" |
 
-De widget ververst ongeveer elke 15 minuten (iOS bepaalt het precieze moment). Lukt verversen
+De widget ververst ongeveer elke 15 minuten (iOS bepaalt het precieze moment). Elke verversing
+kost een beetje Netlify-credits (functietijd). Daarom geeft `/api/widget` binnen 10 minuten het
+vorige antwoord terug uit de database, in plaats van alle diensten opnieuw te vragen. Lukt verversen
 niet, dan toont hij de laatste gegevens met "niet ververst · hh:mm". Tik erop om het dashboard
 te openen.
 
@@ -269,12 +271,15 @@ a recorded value for the same metric, the newer one is shown.
 Set `NETLIFY_TOKEN` (and `NETLIFY_ACCOUNT` to a team slug if you're in more than one
 team). The card shows, for the current billing period:
 
-- **Credits**: an **estimate** of credits used, out of your plan's included credits.
-  Netlify's API does return a "credits used" field, but it isn't kept up to date (it said 0
-  while the Usage page said 90). So the card computes production deploys × 15 + bandwidth
-  GB × 10 instead, which matched the Usage page. Usage of functions and requests isn't
-  included. If you use those, check the Usage page now and then, and adjust the rates at
-  the top of `src/connectors/netlify.ts` if needed.
+- **Credits**: an **estimate** of credits used by the whole team (all sites), out of your
+  plan's included credits. Netlify's API has a "credits used" field, but it stays 0, so the
+  card adds up the meters itself, at Netlify's 2026 rates (top of `src/connectors/netlify.ts`):
+  production deploys × 15, bandwidth × 20 per GB, compute × 10 per GB-hour and requests × 2 per
+  10,000. Netlify doesn't report compute or requests via its API, so those are measured by the
+  dashboard itself: every page load, widget refresh and sync is counted with its duration in
+  `usage_dashboard.invocations` (`src/lib/metering.ts`). Not included: requests for static
+  files, refused logins, and functions of your other sites. Check the Usage page now and then.
+- **Function runs**: how often this dashboard's own function ran this period, and how long.
 - **Production deploys**: counted from each site's deploy list.
 - **Bandwidth** and **build minutes**: raw usage, for context.
 

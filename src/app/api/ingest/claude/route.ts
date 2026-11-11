@@ -1,5 +1,6 @@
 import { withDb } from "@/lib/db";
 import { safeEqual } from "@/lib/secrets";
+import { meter } from "@/lib/metering";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ function bad(message: string, status = 400) {
 }
 
 export async function POST(req: Request) {
+  meter("api/ingest/claude");
   const secret = process.env.INGEST_SECRET;
   if (!secret) return bad("INGEST_SECRET is not set on the server.", 503);
   const auth = req.headers.get("authorization") ?? "";

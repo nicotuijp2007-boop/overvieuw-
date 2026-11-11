@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { byDay, bySession, type Totals } from "@/lib/claudeData";
 import { formatDateTime, formatNumber } from "@/lib/format";
+import { meter } from "@/lib/metering";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ const totalsHeaders = (
 );
 
 export default async function ClaudeCodePage() {
+  meter("claude-code");
   let days: Awaited<ReturnType<typeof byDay>> = [];
   let sessions: Awaited<ReturnType<typeof bySession>> = [];
   let error: string | null = null;

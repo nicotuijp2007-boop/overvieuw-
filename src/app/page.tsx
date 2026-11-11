@@ -8,6 +8,7 @@ import { formatDateTime, type Level } from "@/lib/format";
 import { series } from "@/lib/history";
 import { limitsView } from "@/lib/present";
 import { fetchDashboard } from "@/lib/runner";
+import { meter } from "@/lib/metering";
 
 // Always fetch fresh data on load / refresh.
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 const LEVELS: Level[] = ["ok", "warn", "danger"];
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  meter("page");
   const { status } = await searchParams;
   const filter = LEVELS.find((l) => l === status);
 

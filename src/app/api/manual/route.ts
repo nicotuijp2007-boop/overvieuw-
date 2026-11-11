@@ -1,9 +1,11 @@
 import { services } from "@config/limits.config";
 import { deleteManual, readManual, upsertManual } from "@/lib/manual";
+import { meter } from "@/lib/metering";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  meter("api/manual");
   return Response.json(await readManual());
 }
 
@@ -13,6 +15,7 @@ function bad(message: string) {
 
 /** POST /api/manual: add or replace one manual value. */
 export async function POST(req: Request) {
+  meter("api/manual");
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return bad("JSON verwacht.");
 
@@ -44,6 +47,7 @@ export async function POST(req: Request) {
 
 /** DELETE /api/manual?service=x&metric=y */
 export async function DELETE(req: Request) {
+  meter("api/manual");
   const url = new URL(req.url);
   const service = url.searchParams.get("service");
   const metric = url.searchParams.get("metric");

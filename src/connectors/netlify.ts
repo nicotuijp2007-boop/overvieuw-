@@ -1,3 +1,5 @@
+import { formatNumber } from "@/lib/format";
+import { functionUsage } from "@/lib/metering";
 import type { Connector, UsageMetric } from "./types";
 
 /**
@@ -9,17 +11,21 @@ import type { Connector, UsageMetric } from "./types";
  *   GET /accounts/{slug}/bandwidth       -> { used (bytes), included, period_end_date }
  *   GET /{account_id}/builds/status      -> { minutes: { current, included_minutes } }
  * Production deploys are counted from the documented GET /sites/{id}/deploys.
- * Credits used are estimated from deploys + bandwidth (see below).
+ * Credits used are estimated (see below): the API's own "credits used" stays 0.
  */
 const API = "https://api.netlify.com/api/v1";
 
 /**
- * Credit prices on credit-based plans. 15 per production deploy matched the Usage page
- * (6 deploys = 90 credits). The bandwidth rate is from Netlify's pricing; check
- * docs.netlify.com > "How credits work" if your Usage page and the card drift apart.
+ * Credit prices on credit-based plans (Netlify billing FAQ, 2026). 15 per production deploy
+ * matched the Usage page (6 deploys = 90 credits). Check docs.netlify.com > "How credits work"
+ * if your Usage page and the card drift apart.
  */
 const CREDITS_PER_DEPLOY = 15;
-const CREDITS_PER_GB = 10;
+const CREDITS_PER_GB = 20;
+const CREDITS_PER_GB_HOUR = 10;
+const CREDITS_PER_10K_REQUESTS = 2;
+/** Memory of the site's function (Next.js server handler), in GB: GET /sites/{id}/functions says 1024 MB. */
+const FUNCTION_MEMORY_GB = 1;
 
 async function get<T>(path: string, token: string): Promise<T> {
   let res: Response;
@@ -86,10 +92,12 @@ export const netlify: Connector = {
     const periodStart = Date.parse(account.current_usage_period_start ?? "") || Date.now() - 30 * 86_400_000;
     const resetsAt = account.next_usage_period_start ? new Date(account.next_usage_period_start).toISOString() : undefined;
 
-    const [bandwidth, builds, deploys] = await Promise.all([
+    const [bandwidth, builds, deploys, functions] = await Promise.all([
       get<{ used: number; included: number | null }>(`/accounts/${account.slug}/bandwidth`, token),
       get<{ minutes: { current: number; included_minutes: number | null } }>(`/${account.id}/builds/status`, token),
       countProductionDeploys(token, account.slug, periodStart),
+      // Our own function runs, counted by the dashboard itself (src/lib/metering.ts).
+      functionUsage(new Date(periodStart)).catch(() => null),
     ]);
 
     const fetchedAt = new Date().toISOString();
@@ -98,12 +106,19 @@ export const netlify: Connector = {
     const base = { service: "netlify", source: "api" as const, fetchedAt, resetsAt, periodStart: periodStartIso };
     const metrics: UsageMetric[] = [];
 
-    // capabilities.credits.used is not kept up to date (it reported 0 while the Usage page
-    // showed 90 used), so credits are estimated from what the API does report accurately.
-    const bandwidthGb = bandwidth.used / 1_000_000_000;
-    const estimate = Math.round(deploys * CREDITS_PER_DEPLOY + bandwidthGb * CREDITS_PER_GB);
+    // capabilities.credits.used is not kept up to date (it reports 0 while the Usage page
+    // shows credits used), so credits are estimated per meter:
+    // deploys and bandwidth from the API, compute and requests from our own function runs.
+    const parts = {
+      deploys: deploys * CREDITS_PER_DEPLOY,
+      bandwidth: (bandwidth.used / 1_000_000_000) * CREDITS_PER_GB,
+      compute: functions ? (functions.ms / 3_600_000) * FUNCTION_MEMORY_GB * CREDITS_PER_GB_HOUR : 0,
+      requests: functions ? (functions.count / 10_000) * CREDITS_PER_10K_REQUESTS : 0,
+    };
+    const estimate = Math.round((parts.deploys + parts.bandwidth + parts.compute + parts.requests) * 10) / 10;
     const reported = account.capabilities?.credits;
     const included = typeof reported?.included === "number" ? reported.included : null;
+    const fmt = (n: number) => formatNumber(Math.round(n * 10) / 10);
     metrics.push({
       ...base,
       metric: "Credits",
@@ -112,10 +127,14 @@ export const netlify: Connector = {
       unit: "credits",
       note:
         exceeded ??
-        `Schatting: ${deploys} deploys × ${CREDITS_PER_DEPLOY} + bandbreedte × ${CREDITS_PER_GB}/GB (functies en verzoeken niet meegeteld)`,
+        `Schatting: deploys ${fmt(parts.deploys)} · bandbreedte ${fmt(parts.bandwidth)} · functies ${fmt(parts.compute)} · verzoeken ${fmt(parts.requests)}` +
+          (functions ? "" : " (functies onbekend)"),
     });
     metrics.push(
       { ...base, metric: "Productie-deploys", used: deploys, limit: null, unit: "deploys", note: "deze factuurperiode" },
+      ...(functions
+        ? [{ ...base, metric: "Functie-aanroepen", used: functions.count, limit: null, unit: "aanroepen", note: `door dit dashboard, ${fmt(functions.ms / 1000)} s in totaal, deze factuurperiode` }]
+        : []),
       { ...base, metric: "Bandbreedte", used: Math.round((bandwidth.used / 1_000_000) * 10) / 10, limit: bandwidth.included ? bandwidth.included / 1_000_000 : null, unit: "MB" },
       { ...base, metric: "Buildminuten", used: builds.minutes.current, limit: builds.minutes.included_minutes, unit: "min" },
     );
