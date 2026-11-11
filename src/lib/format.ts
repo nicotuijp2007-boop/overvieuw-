@@ -45,3 +45,9 @@ export function formatDateTime(iso: string): string {
 export function todayIn(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: timeZone(), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
+
+/** 1,284 / 12.9K / 28.9M: short numbers for stat tiles. */
+export function compactNumber(n: number): string {
+  if (Math.abs(n) < 10_000) return formatNumber(n);
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+}

@@ -1,33 +1,44 @@
 @import "tailwindcss";
 
+/*
+ * Colors follow a fixed role palette (chart surfaces, ink, status). Status colors are
+ * reserved for "how full is this limit" and always appear with an icon + label, never alone.
+ */
 :root {
-  color-scheme: light dark;
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --border: #e3e6ea;
-  --text: #16181d;
-  --muted: #5d6470;
-  --track: #e9ecf0;
-  --ok: #1f9d55;
-  --warn: #c98a00;
-  --danger: #d6363b;
-  --accent: #3b5bdb;
-  --danger-bg: #fdecec;
+  color-scheme: light;
+  --bg: #f4f4f1;          /* page plane */
+  --surface: #fcfcfb;     /* card / chart surface */
+  --border: rgba(11, 11, 11, 0.1);
+  --text: #0b0b0b;        /* primary ink */
+  --secondary: #52514e;   /* secondary ink */
+  --muted: #6f6d68;       /* muted ink (labels, axis) */
+  --grid: #e1e0d9;        /* hairlines */
+  --accent: #2a78d6;
+  --ok: #0ca30c;
+  --warn: #fab219;
+  --danger: #d03b3b;
+  --danger-bg: #fbeaea;
+  --danger-text: #a52424;
+  --input-bg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1115;
-    --surface: #171a20;
-    --border: #2a2f38;
-    --text: #e8eaee;
-    --muted: #9aa2ae;
-    --track: #262b33;
-    --ok: #3cc47c;
-    --warn: #e5b332;
-    --danger: #f06468;
-    --accent: #7b93f5;
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --border: rgba(255, 255, 255, 0.1);
+    --text: #f0efec;
+    --secondary: #c3c2b7;
+    --muted: #9a988f;
+    --grid: #2c2c2a;
+    --accent: #3987e5;
+    --ok: #0ca30c;
+    --warn: #fab219;
+    --danger: #d03b3b;
     --danger-bg: #3a1c1e;
+    --danger-text: #ffa3a3;
+    --input-bg: #0d0d0d;
   }
 }
 
@@ -36,21 +47,28 @@
   --color-surface: var(--surface);
   --color-border: var(--border);
   --color-text: var(--text);
+  --color-secondary: var(--secondary);
   --color-muted: var(--muted);
-  --color-track: var(--track);
+  --color-grid: var(--grid);
+  --color-accent: var(--accent);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
-  --color-accent: var(--accent);
   --color-danger-bg: var(--danger-bg);
+  --color-danger-text: var(--danger-text);
+  --color-input-bg: var(--input-bg);
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 input, select, button {
   font: inherit;
+}
+
+summary::-webkit-details-marker {
+  display: none;
 }

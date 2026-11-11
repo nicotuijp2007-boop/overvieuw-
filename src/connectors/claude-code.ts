@@ -1,5 +1,5 @@
 import { latestRateLimits, totalsSince, type Totals } from "@/lib/claudeData";
-import { formatNumber, timeAgo } from "@/lib/format";
+import { compactNumber, timeAgo } from "@/lib/format";
 import type { Connector, UsageMetric } from "./types";
 
 /**
@@ -17,7 +17,7 @@ export const claudeCode: Connector = {
 
     if (limits) {
       const recorded = limits.recordedAt.toISOString();
-      const add = (metric: string, pct: number | null, resets: Date | null) => {
+      const add = (metric: string, pct: number | null, resets: Date | null, windowMs: number) => {
         if (pct == null) return;
         const expired = resets != null && resets.getTime() <= now;
         metrics.push({
@@ -28,6 +28,7 @@ export const claudeCode: Connector = {
           limit: 100,
           unit: "%",
           resetsAt: !expired && resets ? resets.toISOString() : undefined,
+          periodStart: !expired && resets ? new Date(resets.getTime() - windowMs).toISOString() : undefined,
           source: "local",
           fetchedAt: recorded,
           note: expired
@@ -35,8 +36,8 @@ export const claudeCode: Connector = {
             : `Recorded by the status line on ${limits.machine}`,
         });
       };
-      add("Session (5-hour)", limits.fiveHourPct, limits.fiveHourResetsAt);
-      add("Weekly (all models)", limits.sevenDayPct, limits.sevenDayResetsAt);
+      add("Session (5-hour)", limits.fiveHourPct, limits.fiveHourResetsAt, 5 * 3600_000);
+      add("Weekly (all models)", limits.sevenDayPct, limits.sevenDayResetsAt, 7 * 86_400_000);
     }
 
     if (week.responses === 0 && !limits) {
@@ -45,19 +46,19 @@ export const claudeCode: Connector = {
 
     const synced = week.lastAt ? `last activity ${timeAgo(week.lastAt.toISOString(), now)}` : "no activity";
     const note = (t: Totals) =>
-      `${formatNumber(t.input + t.output)} in/out · ${formatNumber(t.cacheWrite + t.cacheRead)} cache · ${t.responses} responses`;
+      `${compactNumber(t.input + t.output)} in/out, ${compactNumber(t.cacheWrite + t.cacheRead)} cache, ${t.responses} responses`;
     const fetchedAt = new Date().toISOString();
     metrics.push(
-      { service: "claude", metric: "Claude Code tokens today", used: today.total, limit: null, unit: "tokens", source: "local", fetchedAt, note: note(today) },
+      { service: "claude", metric: "Tokens today", used: today.total, limit: null, unit: "tokens", source: "local", fetchedAt, note: note(today) },
       {
         service: "claude",
-        metric: "Claude Code tokens (7 days)",
+        metric: "Tokens (7 days)",
         used: week.total,
         limit: null,
         unit: "tokens",
         source: "local",
         fetchedAt,
-        note: `${note(week)} · ${week.machines} computer${week.machines === 1 ? "" : "s"}, ${synced}`,
+        note: `${note(week)}; ${week.machines} computer${week.machines === 1 ? "" : "s"}, ${synced}`,
       },
     );
     return metrics;

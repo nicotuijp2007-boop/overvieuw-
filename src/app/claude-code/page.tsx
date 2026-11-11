@@ -53,7 +53,7 @@ export default async function ClaudeCodePage() {
         old logs. Tokens are not the same as your Pro plan limits, which are measured in % on the dashboard.
       </p>
       {error && (
-        <p className="mt-4 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p>
+        <p className="mt-4 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger-text" role="alert">{error}</p>
       )}
 
       <h2 className="mt-8 mb-2 font-semibold">Per day (last 30 days with activity)</h2>

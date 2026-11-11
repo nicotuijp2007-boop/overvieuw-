@@ -11,7 +11,7 @@ export function RefreshButton() {
       type="button"
       onClick={() => startTransition(() => router.refresh())}
       disabled={pending}
-      className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium hover:border-accent disabled:opacity-60"
+      className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium hover:border-accent disabled:opacity-60"
     >
       {pending ? "Refreshing…" : "Refresh"}
     </button>

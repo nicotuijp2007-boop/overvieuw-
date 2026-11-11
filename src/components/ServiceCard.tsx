@@ -1,110 +1,84 @@
 import Link from "next/link";
-import type { Source, UsageMetric } from "@/connectors/types";
-import { formatDateTime, formatDuration, formatNumber, levelFor, timeAgo, type Level } from "@/lib/format";
+import { compactNumber, formatDateTime, timeAgo, type Level } from "@/lib/format";
+import type { Headroom } from "@/lib/headroom";
 import type { ServiceResult } from "@/lib/runner";
+import { STATUS, StatusIcon } from "./Status";
 
-const barColor: Record<Level, string> = { ok: "bg-ok", warn: "bg-warn", danger: "bg-danger" };
-const textColor: Record<Level, string> = { ok: "text-ok", warn: "text-warn", danger: "text-danger" };
+const order: Level[] = ["danger", "warn", "ok"];
 
-const badgeStyle: Record<Source, string> = {
-  api: "border-border text-muted",
-  local: "border-border text-muted",
-  manual: "border-accent text-accent",
-};
-
-function Badge({ source }: { source: Source }) {
-  return (
-    <span className={`rounded border px-1.5 py-px text-[10px] font-medium uppercase tracking-wide ${badgeStyle[source]}`}>
-      {source}
-    </span>
-  );
-}
-
-function MetricRow({ m, now }: { m: UsageMetric; now: string }) {
-  const nowMs = new Date(now).getTime();
-  const pct = m.limit ? (m.used / m.limit) * 100 : null;
-  const level = pct != null ? levelFor(pct) : null;
+/**
+ * Per service: connection status, its figures that have no limit (tokens, deploys,
+ * bandwidth...), and any error. Its limits are in the list above.
+ */
+export function ServiceCard({ result, limits, now }: { result: ServiceResult; limits: Headroom[]; now: number }) {
+  const info = result.metrics.filter((m) => m.limit == null);
+  const worst = order.find((l) => limits.some((h) => h.level === l));
 
   return (
-    <li className="py-2.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="flex items-center gap-2 text-sm font-medium">
-          {m.metric} <Badge source={m.source} />
-        </span>
-        {pct != null && level && (
-          <span className={`text-sm font-semibold tabular-nums ${textColor[level]}`}>{Math.round(pct)}%</span>
-        )}
-      </div>
-
-      <div className="mt-0.5 text-xs text-muted tabular-nums">
-        {formatNumber(m.used)}
-        {m.limit != null && ` / ${formatNumber(m.limit)}`} {m.unit}
-      </div>
-
-      {pct != null && level && (
-        <div
-          className="mt-1.5 h-2 overflow-hidden rounded-full bg-track"
-          role="progressbar"
-          aria-label={m.metric}
-          aria-valuenow={Math.round(pct)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        >
-          <div className={`h-full rounded-full ${barColor[level]}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+    <section className="flex flex-col rounded-xl border border-border bg-surface p-5">
+      <header className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="font-semibold">{result.name}</h2>
+          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+            {worst ? (
+              <>
+                <StatusIcon level={worst} className="h-3.5 w-3.5" />
+                {limits.length} limit{limits.length === 1 ? "" : "s"}, {STATUS[worst].label.toLowerCase()}
+              </>
+            ) : result.error ? (
+              "Not loaded"
+            ) : (
+              "No limits"
+            )}
+          </div>
         </div>
-      )}
-
-      <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted">
-        {m.resetsAt && (
-          <span title={formatDateTime(m.resetsAt)}>
-            Resets in {formatDuration(new Date(m.resetsAt).getTime() - nowMs)}
+        <div className="text-right text-xs text-muted">
+          <span title={formatDateTime(result.fetchedAt)}>
+            {result.hasConnector ? `Fetched ${timeAgo(result.fetchedAt, now)}` : "Manual only"}
           </span>
-        )}
-        {m.source === "manual" && <span title={formatDateTime(m.fetchedAt)}>Entered {timeAgo(m.fetchedAt, nowMs)}</span>}
-        {m.source === "local" && <span title={formatDateTime(m.fetchedAt)}>Updated {timeAgo(m.fetchedAt, nowMs)}</span>}
-        {m.note && <span>{m.note}</span>}
-      </div>
-    </li>
-  );
-}
-
-export function ServiceCard({ result, now }: { result: ServiceResult; now: string }) {
-  return (
-    <section className="flex flex-col rounded-lg border border-border bg-surface p-4">
-      <header className="flex items-baseline justify-between gap-2">
-        <h2 className="font-semibold">
-          {result.name}
           {result.details && (
-            <Link href={result.details} className="ml-2 text-xs font-normal text-accent hover:underline">
-              Details
-            </Link>
+            <div>
+              <Link href={result.details} className="font-medium text-accent hover:underline">
+                Details →
+              </Link>
+            </div>
           )}
-        </h2>
-        <span className="text-xs text-muted" title={formatDateTime(result.fetchedAt)}>
-          {result.hasConnector ? `Fetched ${timeAgo(result.fetchedAt, new Date(now).getTime())}` : "Manual only"}
-        </span>
+        </div>
       </header>
 
       {result.error && (
-        <p className="mt-3 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">
+        <p className="mt-3 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger-text" role="alert">
           {result.error}
         </p>
       )}
 
-      {result.metrics.length > 0 ? (
-        <ul className="mt-1 divide-y divide-border">
-          {result.metrics.map((m) => (
-            <MetricRow key={`${m.source}:${m.metric}`} m={m} now={now} />
+      {info.length > 0 && (
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+          {info.map((m) => (
+            <div key={`${m.source}:${m.metric}`} className="min-w-0" title={m.note}>
+              <dt className="truncate text-xs text-muted">{m.metric}</dt>
+              <dd className="text-lg font-semibold leading-tight">
+                {compactNumber(m.used)} <span className="text-sm font-normal text-secondary">{m.unit}</span>
+              </dd>
+            </div>
           ))}
+        </dl>
+      )}
+      {info.length > 0 && info.some((m) => m.note) && (
+        <ul className="mt-3 space-y-0.5 text-xs text-muted">
+          {info
+            .filter((m) => m.note)
+            .map((m) => (
+              <li key={m.metric}>
+                <span className="text-secondary">{m.metric}:</span> {m.note}
+              </li>
+            ))}
         </ul>
-      ) : (
-        !result.error && (
-          <p className="mt-3 text-sm text-muted">
-            {result.hasConnector
-              ? "No metrics returned."
-              : "No connector yet. Add values with the manual entry form below."}
-          </p>
-        )
+      )}
+      {!result.error && info.length === 0 && limits.length === 0 && (
+        <p className="mt-3 text-sm text-muted">
+          {result.hasConnector ? "No figures returned." : "No connector yet. Add values under Manual values."}
+        </p>
       )}
     </section>
   );

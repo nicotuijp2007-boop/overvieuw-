@@ -15,6 +15,11 @@ export interface UsageMetric {
   unit: string;
   /** ISO timestamp of when this metric resets, if known. */
   resetsAt?: string;
+  /**
+   * ISO timestamp of when the current period started, if known. With resetsAt, the
+   * dashboard shows how far into the period you are and projects usage at reset.
+   */
+  periodStart?: string;
   source: Source;
   /** ISO timestamp of when this value was fetched (or entered, for manual values). */
   fetchedAt: string;

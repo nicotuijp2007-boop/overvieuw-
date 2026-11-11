@@ -41,6 +41,7 @@ select
 `;
 
 const MB = 1_000_000;
+const formatMb = (bytes: number) => `${Math.round(bytes / MB).toLocaleString("en-US")} MB`;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const limitFor = (metric: string) => services.supabase?.limits[metric]?.limit ?? null;
 
@@ -94,9 +95,10 @@ async function projectMetrics(p: Project, token: string, label: (m: string) => s
       ...base,
       metric: label("Disk used"),
       used: round1(disk.metrics.fs_used_bytes / MB),
-      limit: round1(disk.metrics.fs_size_bytes / MB),
+      // Not a plan limit: Supabase grows the disk automatically. Shown as info, not as a bar.
+      limit: null,
       unit: "MB",
-      note: "Includes indexes, WAL and system files. Supabase grows the disk automatically.",
+      note: `of ${formatMb(disk.metrics.fs_size_bytes)} disk; includes indexes, WAL and system files`,
     },
     { ...base, metric: label("API requests (7 days)"), used: requests, limit: null, unit: "requests" },
   ];

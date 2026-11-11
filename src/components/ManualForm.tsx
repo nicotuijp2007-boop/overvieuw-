@@ -9,7 +9,7 @@ interface Props {
   entries: ManualEntry[];
 }
 
-const input = "w-full rounded-md border border-border bg-bg px-2 py-1.5 text-sm";
+const input = "w-full rounded-md border border-border bg-input-bg px-2 py-1.5 text-sm";
 
 export function ManualForm({ services, entries }: Props) {
   const router = useRouter();
@@ -38,11 +38,19 @@ export function ManualForm({ services, entries }: Props) {
   const nameOf = (id: string) => services.find((s) => s.id === id)?.name ?? id;
 
   return (
-    <section className="mt-10 rounded-lg border border-border bg-surface p-4">
-      <h2 className="font-semibold">Manual entry</h2>
-      <p className="mt-1 text-sm text-muted">
-        For values no API provides (e.g. Claude Pro session/weekly %). Entering the same service + metric again
-        updates it. Stored in your Supabase database.
+    <details className="group mt-10 rounded-xl border border-border bg-surface">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+        <span>
+          <span className="font-semibold">Manual values</span>
+          <span className="ml-2 text-sm text-muted">
+            {entries.length ? `${entries.length} saved` : "for numbers no API provides, like Supabase egress"}
+          </span>
+        </span>
+        <span aria-hidden className="text-muted transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="border-t border-border px-5 pb-5 pt-4">
+      <p className="text-sm text-muted">
+        Saving the same service + metric again updates it. Stored in your Supabase database.
       </p>
 
       <form onSubmit={onSubmit} className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -82,7 +90,7 @@ export function ManualForm({ services, entries }: Props) {
           >
             Save
           </button>
-          {error && <span className="ml-3 text-sm text-danger" role="alert">{error}</span>}
+          {error && <span className="ml-3 text-sm text-danger-text" role="alert">{error}</span>}
         </div>
       </form>
 
@@ -107,6 +115,7 @@ export function ManualForm({ services, entries }: Props) {
           ))}
         </ul>
       )}
-    </section>
+      </div>
+    </details>
   );
 }

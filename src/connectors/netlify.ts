@@ -94,7 +94,8 @@ export const netlify: Connector = {
 
     const fetchedAt = new Date().toISOString();
     const exceeded = account.usages_exceeded?.length ? `Netlify reports exceeded: ${account.usages_exceeded.join(", ")}` : undefined;
-    const base = { service: "netlify", source: "api" as const, fetchedAt, resetsAt };
+    const periodStartIso = account.current_usage_period_start ? new Date(account.current_usage_period_start).toISOString() : undefined;
+    const base = { service: "netlify", source: "api" as const, fetchedAt, resetsAt, periodStart: periodStartIso };
     const metrics: UsageMetric[] = [];
 
     // capabilities.credits.used is not kept up to date (it reported 0 while the Usage page
