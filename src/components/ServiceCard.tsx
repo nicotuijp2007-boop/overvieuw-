@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Source, UsageMetric } from "@/connectors/types";
 import { formatDateTime, formatDuration, formatNumber, levelFor, timeAgo, type Level } from "@/lib/format";
 import type { ServiceResult } from "@/lib/runner";
@@ -60,6 +61,7 @@ function MetricRow({ m, now }: { m: UsageMetric; now: string }) {
           </span>
         )}
         {m.source === "manual" && <span title={formatDateTime(m.fetchedAt)}>Entered {timeAgo(m.fetchedAt, nowMs)}</span>}
+        {m.source === "local" && <span title={formatDateTime(m.fetchedAt)}>Updated {timeAgo(m.fetchedAt, nowMs)}</span>}
         {m.note && <span>{m.note}</span>}
       </div>
     </li>
@@ -70,7 +72,14 @@ export function ServiceCard({ result, now }: { result: ServiceResult; now: strin
   return (
     <section className="flex flex-col rounded-lg border border-border bg-surface p-4">
       <header className="flex items-baseline justify-between gap-2">
-        <h2 className="font-semibold">{result.name}</h2>
+        <h2 className="font-semibold">
+          {result.name}
+          {result.details && (
+            <Link href={result.details} className="ml-2 text-xs font-normal text-accent hover:underline">
+              Details
+            </Link>
+          )}
+        </h2>
         <span className="text-xs text-muted" title={formatDateTime(result.fetchedAt)}>
           {result.hasConnector ? `Fetched ${timeAgo(result.fetchedAt, new Date(now).getTime())}` : "Manual only"}
         </span>

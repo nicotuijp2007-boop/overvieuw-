@@ -25,5 +25,7 @@ export interface UsageMetric {
 export interface Connector {
   /** Must match a key in limits.config.ts `services`. */
   id: string;
+  /** Optional link to a details page, shown on the card. */
+  details?: string;
   fetchUsage(): Promise<UsageMetric[]>;
 }

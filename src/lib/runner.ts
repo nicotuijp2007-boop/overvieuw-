@@ -9,6 +9,7 @@ export interface ServiceResult {
   metrics: UsageMetric[];
   /** False when there is no connector for this service yet (manual entries only). */
   hasConnector: boolean;
+  details?: string;
   /** Set when the connector failed. Other cards are unaffected. */
   error?: string;
   fetchedAt: string;
@@ -45,16 +46,16 @@ export async function fetchAll(): Promise<ServiceResult[]> {
       if (!connector) return { id, name: cfg.name, metrics: [], hasConnector: false, fetchedAt };
       try {
         const metrics = await withTimeout(connector.fetchUsage(), TIMEOUT_MS);
-        return { id, name: cfg.name, metrics, hasConnector: true, fetchedAt };
+        return { id, name: cfg.name, metrics, hasConnector: true, details: connector.details, fetchedAt };
       } catch (err) {
         // Only the message is shown: connectors must not put tokens in error messages.
-        return { id, name: cfg.name, metrics: [], hasConnector: true, fetchedAt, error: (err as Error).message };
+        return { id, name: cfg.name, metrics: [], hasConnector: true, details: connector.details, fetchedAt, error: (err as Error).message };
       }
     }),
   );
 
-  // Manual entries are added to their service's card. If the connector already returned
-  // a metric with the same name, the fetched value wins.
+  // Manual entries are added to their service's card. If the connector also returned
+  // a metric with the same name, the most recent value wins.
   let manualError: string | undefined;
   const manual = await readManual().catch((err: Error) => {
     manualError = err.message;
@@ -63,7 +64,10 @@ export async function fetchAll(): Promise<ServiceResult[]> {
   for (const entry of manual) {
     const card = results.find((r) => r.id === entry.service);
     if (!card) continue; // service disabled or removed from config
-    if (!card.metrics.some((m) => m.metric === entry.metric)) card.metrics.push(manualToMetric(entry));
+    const m = manualToMetric(entry);
+    const i = card.metrics.findIndex((x) => x.metric === m.metric);
+    if (i === -1) card.metrics.push(m);
+    else if (Date.parse(m.fetchedAt) > Date.parse(card.metrics[i].fetchedAt)) card.metrics[i] = m;
   }
   if (manualError) {
     results.push({ id: "_manual", name: "Manual entries", metrics: [], hasConnector: true, fetchedAt: new Date().toISOString(), error: manualError });

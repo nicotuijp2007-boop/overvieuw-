@@ -4,8 +4,8 @@ A personal dashboard that shows, in one place, how close you are to the limits o
 services you use (Claude, Supabase, Netlify, n8n, …). It runs locally on your own machine
 because one data source is your local Claude Code logs.
 
-> **Status:** phases 1–2 done (scaffold, mock data, dashboard UI, manual entries).
-> Real connectors come next, one at a time.
+> **Status:** dashboard, manual entries and the Claude Code connector are done.
+> Netlify, Supabase and n8n connectors come next, one at a time.
 
 ## Setup
 
@@ -51,6 +51,53 @@ src/app/api/manual      GET/POST/DELETE manual values
 - Each metric has a badge for where its value came from: `api`, `local` (files on
   your machine) or `manual`.
 
+## Claude (Pro)
+
+The Claude card combines two local sources. Neither needs a token.
+
+**1. Token usage from Claude Code logs.** The connector reads every
+`~/.claude/projects/**/*.jsonl` file (including subagent logs) and shows today's and the last
+7 days' tokens. Click **Details** on the card for per-day and per-session tables.
+- Claude Code writes the same response to the log several times, so entries are
+  de-duplicated on message id + request id (as `ccusage` does).
+- Only token counts, model, time, session id and project folder are read. Conversation
+  text is ignored.
+- Claude Code deletes logs older than `cleanupPeriodDays` (default 30), so older days
+  drop out of the Details page.
+- Logs somewhere else? Set `CLAUDE_CONFIG_DIR` in `.env.local`.
+
+**2. Session (5-hour) and weekly limits via the status line.** There is no API for Pro plan
+limits. Claude Code does pass them (as a %, with reset times) to your
+[status line](https://code.claude.com/docs/en/statusline) command, so
+`scripts/statusline.mjs` saves them to `data/claude-rate-limits.json` for the dashboard.
+Add this to `~/.claude/settings.json`, using the absolute path to this repo:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node /absolute/path/to/overvieuw-/scripts/statusline.mjs"
+  }
+}
+```
+
+Your status line will then show something like `Opus · 5h 42% · 7d 18%`. If you already
+have a status line command, keep it by putting it after `--`:
+
+```json
+"command": "node /absolute/path/to/overvieuw-/scripts/statusline.mjs -- ~/.claude/my-statusline.sh"
+```
+
+Limitations:
+- The values only update while you're using Claude Code. Usage on claude.ai counts toward
+  the same limits but won't show until Claude Code's next response.
+- Claude Code only sends limits after the first response in a session.
+- Once a window's reset time passes, the dashboard shows 0% with a note until Claude Code
+  records a new value.
+
+You can always override these with a manual entry. When there's both a manual entry and a
+recorded value for the same metric, the newer one is shown.
+
 ## Manual entries
 
 For values no API exposes (for example Claude Pro's session and weekly usage), use the
@@ -83,7 +130,7 @@ Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
 | Netlify | `NETLIFY_TOKEN` | app.netlify.com → User settings → Applications → Personal access tokens |
 | Supabase | `SUPABASE_TOKEN` | supabase.com/dashboard → Account → Access Tokens (starts with `sbp_`) |
 | n8n | `N8N_API_KEY`, `N8N_BASE_URL` | Your n8n instance → Settings → n8n API |
-| Claude Code | none | Reads local logs under `~/.claude/projects` |
+| Claude Code | none | Reads local logs under `~/.claude/projects`, plus the status line file (see above) |
 
 (This table is filled in further as each connector is added.)
 
@@ -140,6 +187,6 @@ Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
 
 1. ~~Scaffold, config, connector interface, mock connector~~
 2. ~~Dashboard UI with mock data and manual entries~~
-3. Real connectors: Claude Code local logs → Netlify → Supabase → n8n
+3. Real connectors: ~~Claude Code local logs~~ → Netlify → Supabase → n8n
 4. SQLite history of every fetch and 30-day trend charts
 5. Later: scheduled fetching and alerts above 90%
