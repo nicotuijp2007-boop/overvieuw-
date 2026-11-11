@@ -197,7 +197,7 @@ against your team's **Usage** page now and then.
 
 Set `SUPABASE_TOKEN`. Create it under supabase.com/dashboard → avatar →
 Account preferences → Access Tokens. Use a **scoped** token with **read** access to
-projects, usage/analytics, database and disk config, and nothing else.
+projects, usage/analytics and database, and nothing else.
 `SUPABASE_PROJECTS` (comma-separated refs or names) limits the card to some projects.
 
 Per project the card shows:
@@ -207,7 +207,6 @@ Per project the card shows:
 | Database size | `pg_database_size()` via the read-only SQL endpoint |
 | Storage size | sum of file sizes in `storage.objects` |
 | Monthly active users | users who signed in during the last 30 days (approximation of billed MAU) |
-| Disk used | disk utilization endpoint (includes indexes, WAL and system files) |
 | API requests (7 days) | analytics usage endpoint, for context (no limit on Free) |
 
 SQL runs through `/database/query/read-only`, which uses a read-only transaction, so the

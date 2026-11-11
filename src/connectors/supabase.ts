@@ -6,12 +6,15 @@ import type { Connector, UsageMetric } from "./types";
  *
  * Per project:
  *   GET  /projects                                              -> list of projects
- *   GET  /projects/{ref}/config/disk/util                       -> disk used / size
  *   GET  /projects/{ref}/analytics/endpoints/usage.api-counts   -> requests per day
  *   POST /projects/{ref}/database/query/read-only               -> database size, storage size, active users
  * The read-only query endpoint runs SQL in a read-only transaction, so this can't change anything.
  *
  * Not available via the API: egress, and the official billed MAU figure. Use manual entries for those.
+ *
+ * Deliberately not shown: disk usage (/config/disk/util). It covers the whole disk (indexes, WAL,
+ * system files), is managed by Supabase, and next to "Databasegrootte" only confuses: the
+ * Free plan limit that matters is the 500 MB database size.
  */
 const API = "https://api.supabase.com/v1";
 
@@ -41,7 +44,6 @@ select
 `;
 
 const MB = 1_000_000;
-const formatMb = (bytes: number) => `${Math.round(bytes / MB).toLocaleString("nl-NL")} MB`;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const limitFor = (metric: string) => services.supabase?.limits[metric]?.limit ?? null;
 
@@ -61,13 +63,12 @@ async function projectMetrics(p: Project, token: string, label: (m: string) => s
   }
 
   const ref = encodeURIComponent(p.ref);
-  const [rows, disk, counts] = await Promise.all([
+  const [rows, counts] = await Promise.all([
     call<{ db_bytes: number | string; storage_bytes: number | string; active_users: number | string }[]>(
       `/projects/${ref}/database/query/read-only`,
       token,
       { method: "POST", body: JSON.stringify({ query: SQL }) },
     ),
-    call<{ metrics: { fs_size_bytes: number; fs_used_bytes: number } }>(`/projects/${ref}/config/disk/util`, token),
     call<{ result: { total_rest_requests?: number; total_auth_requests?: number; total_storage_requests?: number; total_realtime_requests?: number }[] }>(
       `/projects/${ref}/analytics/endpoints/usage.api-counts?interval=7day`,
       token,
@@ -90,15 +91,6 @@ async function projectMetrics(p: Project, token: string, label: (m: string) => s
       limit: limitFor("Actieve gebruikers (MAU)"),
       unit: "MAU",
       note: "benadering: ingelogd in de laatste 30 dagen",
-    },
-    {
-      ...base,
-      metric: label("Schijfgebruik"),
-      used: round1(disk.metrics.fs_used_bytes / MB),
-      // Not a plan limit: Supabase grows the disk automatically. Shown as info, not as a bar.
-      limit: null,
-      unit: "MB",
-      note: `van ${formatMb(disk.metrics.fs_size_bytes)}; groeit automatisch mee`,
     },
     { ...base, metric: label("API-verzoeken (7 dagen)"), used: requests, limit: null, unit: "verzoeken" },
   ];
