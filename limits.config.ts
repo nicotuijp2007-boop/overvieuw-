@@ -70,7 +70,8 @@ export const services: Record<string, ServiceConfig> = {
     enabled: true,
     limits: {
       // Free is a credit-based plan: deploys, bandwidth, compute etc. all draw from one credit pool.
-      "Credits": { limit: 300, unit: "credits", where: "app.netlify.com > Team settings > Billing / Usage" },
+      // The API also returns the included credits, which takes precedence over this value.
+      "Credits": { limit: 300, unit: "credits", where: "app.netlify.com > your team > Usage & billing" },
     },
   },
 

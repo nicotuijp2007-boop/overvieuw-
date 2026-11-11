@@ -4,8 +4,8 @@ A personal dashboard that shows, in one place, how close you are to the limits o
 services you use (Claude, Supabase, Netlify, n8n, …). It runs locally on your own machine
 because one data source is your local Claude Code logs.
 
-> **Status:** dashboard, manual entries and the Claude Code connector are done.
-> Netlify, Supabase and n8n connectors come next, one at a time.
+> **Status:** dashboard, manual entries, Claude Code and Netlify connectors are done.
+> Supabase and n8n connectors come next.
 
 ## Setup
 
@@ -98,6 +98,20 @@ Limitations:
 You can always override these with a manual entry. When there's both a manual entry and a
 recorded value for the same metric, the newer one is shown.
 
+## Netlify
+
+Set `NETLIFY_TOKEN` in `.env.local` (and `NETLIFY_ACCOUNT` to a team slug if you're in
+more than one team). The card shows, for the current billing period:
+
+- **Credits**: used / included, from your team's account data (`capabilities.credits`).
+- **Production deploys**: counted from each site's deploy list.
+- **Bandwidth** and **build minutes**: raw usage, for context.
+
+The credits, bandwidth and build-minute numbers come from endpoints the Netlify dashboard
+uses but that aren't in Netlify's public API reference, so they could change without notice.
+If the card errors after a Netlify update, that's the likely cause. Check the credits value
+against your team's **Usage** page once; if they differ, enter the correct value manually.
+
 ## Manual entries
 
 For values no API exposes (for example Claude Pro's session and weekly usage), use the
@@ -187,6 +201,6 @@ Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
 
 1. ~~Scaffold, config, connector interface, mock connector~~
 2. ~~Dashboard UI with mock data and manual entries~~
-3. Real connectors: ~~Claude Code local logs~~ → Netlify → Supabase → n8n
+3. Real connectors: ~~Claude Code local logs~~ → ~~Netlify~~ → Supabase → n8n
 4. SQLite history of every fetch and 30-day trend charts
 5. Later: scheduled fetching and alerts above 90%
