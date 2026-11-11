@@ -1,4 +1,5 @@
 import { latestRateLimits, totalsSince } from "@/lib/claudeData";
+import { withDb } from "@/lib/db";
 import { compactNumber } from "@/lib/format";
 import type { Connector, UsageMetric } from "./types";
 
@@ -11,7 +12,12 @@ export const claudeCode: Connector = {
   id: "claude",
   details: "/claude-code",
   async fetchUsage() {
-    const [limits, today, week] = await Promise.all([latestRateLimits(), totalsSince(1), totalsSince(7)]);
+    // One connection for all three queries.
+    const [limits, today, week] = await withDb(async (sql) => [
+      await latestRateLimits(sql),
+      await totalsSince(1, sql),
+      await totalsSince(7, sql),
+    ] as const);
     const now = Date.now();
     const metrics: UsageMetric[] = [];
 

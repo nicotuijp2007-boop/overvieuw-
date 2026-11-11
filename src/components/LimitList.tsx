@@ -54,7 +54,7 @@ function LimitRow({ h, now, spark, showLegend }: { h: Headroom; now: number; spa
       {showLegend && (
         <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted">
           <span className="mt-0.5 inline-block h-3 w-0.5 shrink-0 rounded-full bg-text" aria-hidden />
-          <span>Het streepje toont hoeveel tijd er nog over is tot de reset. Is de balk korter, dan raak je op vóór de reset.</span>
+          <span>Streepje = tijd over tot de reset. Balk korter dan het streepje = op vóór de reset.</span>
         </p>
       )}
 
@@ -80,6 +80,35 @@ function LimitRow({ h, now, spark, showLegend }: { h: Headroom; now: number; spa
   );
 }
 
+/** One line for a limit with nothing to watch: no reset, OK, at least half left. */
+function CompactRow({ h, now }: { h: Headroom; now: number }) {
+  const m = h.metric;
+  const s = STATUS[h.level];
+  return (
+    <li
+      className="flex items-center gap-3 py-2.5"
+      title={`${usedText(h)} · ${freshness(m.fetchedAt, m.source, now)}${m.stale ? " · niet ververst" : ""}${m.note ? ` · ${m.note}` : ""}`}
+    >
+      <StatusIcon level={h.level} className="h-4 w-4" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs text-muted sm:inline">
+          <span className="font-medium uppercase tracking-wide">{h.serviceName}</span>
+          {m.stale && <span className="sm:hidden"> · niet ververst</span>}
+        </span>
+        <span className="hidden sm:inline"> </span>
+        <span className="font-medium">{m.metric}</span>
+        {m.stale && <span className="hidden text-xs text-muted sm:inline"> · niet ververst</span>}
+      </span>
+      <span className={`hidden h-1.5 w-28 shrink-0 overflow-hidden rounded-full sm:block ${s.track}`} aria-hidden>
+        <span className={`block h-full rounded-full ${s.fill}`} style={{ width: `${h.leftPct}%` }} />
+      </span>
+      <span className="shrink-0 text-right text-sm font-semibold">
+        {h.leftPct}% <span className="font-normal text-secondary">over</span>
+      </span>
+    </li>
+  );
+}
+
 export function LimitList({
   items,
   now,
@@ -92,7 +121,7 @@ export function LimitList({
   filter?: Level;
 }) {
   const shown = filter ? items.filter((h) => h.level === filter) : items;
-  // Limits without a reset that are well within margin fold into one line (not while filtering).
+  // Limits without a reset that are well within margin get a compact one-line row (not while filtering).
   const isAmple = (h: Headroom) => !filter && !h.metric.resetsAt && h.level === "ok" && !h.runsOutAt && h.leftPct >= 50;
   const main = shown.filter((h) => !isAmple(h));
   const ample = shown.filter(isAmple);
@@ -122,25 +151,9 @@ export function LimitList({
       {shown.length ? (
         <ul className="divide-y divide-grid">
           {main.map(row)}
-          {ample.length > 0 && (
-            <li className={main.length ? "pt-4" : ""}>
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StatusIcon level="ok" className="h-4 w-4" />
-                    <span className="font-medium">
-                      {ample.length} {ample.length === 1 ? "limiet" : "limieten"} ruim binnen marge
-                    </span>
-                    <span className="truncate text-sm text-muted">
-                      {ample.map((h) => h.metric.metric).join(", ")}
-                    </span>
-                  </span>
-                  <span aria-hidden className="text-muted transition-transform group-open:rotate-180">▾</span>
-                </summary>
-                <ul className="mt-2 divide-y divide-grid border-t border-grid pt-4">{ample.map((h) => row(h, -1))}</ul>
-              </details>
-            </li>
-          )}
+          {ample.map((h) => (
+            <CompactRow key={`${h.metric.service}:${h.metric.metric}`} h={h} now={now} />
+          ))}
         </ul>
       ) : (
         <p className="text-sm text-muted">{filter ? "Geen limieten met deze status." : "Nog geen limieten om te tonen."}</p>

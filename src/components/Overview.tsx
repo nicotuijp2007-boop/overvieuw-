@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { formatDuration, type Level } from "@/lib/format";
+import type { Level } from "@/lib/format";
 import type { Headroom } from "@/lib/headroom";
-import { urgencyText } from "./LimitList";
+import { leftText, urgencyText } from "./LimitList";
 import { STATUS, StatusIcon } from "./Status";
 
 /**
- * Top of the dashboard: the most urgent limit as the one headline number, and how many
- * limits are in each state. The state tiles filter the list below.
+ * A compact status bar above the list: one sentence on what needs attention (without
+ * repeating the list's bars), and the status chips that filter the list.
  */
 export function Overview({
   items,
@@ -19,73 +19,84 @@ export function Overview({
   problems: { name: string; hasValues: boolean }[];
   filter?: Level;
 }) {
-  const top = items[0];
   const counts: Record<Level, number> = { ok: 0, warn: 0, danger: 0 };
   for (const h of items) counts[h.level]++;
+  const top = items[0];
   const urgency = top ? urgencyText(top, now) : null;
+  const attention = top && (top.level !== "ok" || urgency?.urgent);
+
+  let headline: React.ReactNode;
+  if (!top) headline = <span className="text-secondary">Nog geen limieten.</span>;
+  else if (attention) {
+    headline = (
+      <>
+        <StatusIcon level={top.level} className="h-5 w-5" />
+        <span>
+          <span className="font-semibold">
+            {top.serviceName} · {top.metric.metric}
+          </span>{" "}
+          <span className="text-secondary">
+            {leftText(top)}
+            {urgency ? ` · ${urgency.text.charAt(0).toLowerCase()}${urgency.text.slice(1)}` : ""}
+          </span>
+        </span>
+      </>
+    );
+  } else {
+    headline = (
+      <>
+        <StatusIcon level="ok" className="h-5 w-5" />
+        <span>
+          <span className="font-semibold">Alles binnen marge</span>{" "}
+          <span className="text-secondary">
+            · krapst: {top.serviceName} {top.metric.metric}, {leftText(top)}
+          </span>
+        </span>
+      </>
+    );
+  }
 
   return (
-    <section className="grid gap-5 rounded-xl border border-border bg-surface p-5 md:grid-cols-[1fr_auto] md:items-center">
-      <div className="min-w-0">
-        <div className="text-sm text-secondary">Meest urgent</div>
-        {top ? (
-          <>
-            <div className="mt-1 flex items-center gap-3">
-              <span className="text-5xl font-semibold leading-none sm:text-6xl">
-                {top.leftPct}%
-              </span>
-              <span className="text-xl font-medium text-secondary">over</span>
-              <StatusIcon level={top.level} className="h-7 w-7" />
-            </div>
-            <div className="mt-2 font-medium">
-              {top.serviceName} · {top.metric.metric}
-            </div>
-            <div className="text-sm text-secondary">
-              {urgency?.text ??
-                (top.metric.resetsAt ? `Reset over ${formatDuration(Date.parse(top.metric.resetsAt) - now)}` : "Geen vaste reset")}
-            </div>
-          </>
-        ) : (
-          <div className="mt-1 text-5xl font-semibold leading-none text-muted">—</div>
-        )}
+    <section className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-border bg-surface px-5 py-4">
+      <div className="min-w-0 flex-1 basis-72">
+        <p className="flex items-start gap-2">{headline}</p>
         {problems.length > 0 && (
-          <p className="mt-3 flex items-start gap-1.5 text-sm text-secondary">
+          <p className="mt-1.5 flex items-start gap-1.5 text-sm text-secondary">
             <StatusIcon level="warn" className="mt-0.5 h-3.5 w-3.5" />
             <span>
               {problems
                 .map((p) => (p.hasValues ? `${p.name} kon niet verversen (laatst bekende waarden)` : `${p.name} kon niet laden`))
                 .join(" · ")}
-              . Zie de kaart hieronder.
             </span>
           </p>
         )}
       </div>
 
-      <ul className="grid grid-cols-3 gap-2 md:w-[22rem]" aria-label="Filter op status">
-        {(["ok", "warn", "danger"] as Level[]).map((level) => {
-          const active = filter === level;
-          return (
-            <li key={level}>
-              <Link
-                href={active ? "/" : `/?status=${level}`}
-                scroll={false}
-                aria-pressed={active}
-                title={`${STATUS[level].label}: ${STATUS[level].rule}. Klik om te filteren.`}
-                className={`block rounded-lg border px-3 py-2.5 transition-colors hover:border-accent ${
-                  active ? "border-accent ring-1 ring-accent" : "border-border"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 text-xs font-medium text-secondary">
+      <div>
+        <ul className="flex gap-2" aria-label="Filter op status">
+          {(["ok", "warn", "danger"] as Level[]).map((level) => {
+            const active = filter === level;
+            return (
+              <li key={level}>
+                <Link
+                  href={active ? "/" : `/?status=${level}`}
+                  scroll={false}
+                  aria-pressed={active}
+                  title={`${STATUS[level].label}: ${STATUS[level].rule}. Klik om te filteren.`}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors hover:border-accent ${
+                    active ? "border-accent ring-1 ring-accent" : "border-border"
+                  }`}
+                >
                   <StatusIcon level={level} className="h-3.5 w-3.5" />
-                  {STATUS[level].label}
-                </div>
-                <div className="mt-1 text-2xl font-semibold">{counts[level]}</div>
-                <div className="mt-0.5 text-[11px] leading-tight text-muted">{STATUS[level].rule}</div>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+                  <span className="text-secondary">{STATUS[level].label}</span>
+                  <span className="font-semibold">{counts[level]}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-1.5 text-[11px] text-muted">OK &gt; 30% · Let op 10–30% · Kritiek &lt; 10% over</p>
+      </div>
     </section>
   );
 }

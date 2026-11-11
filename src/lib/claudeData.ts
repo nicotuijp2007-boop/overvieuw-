@@ -1,3 +1,4 @@
+import type postgres from "postgres";
 import { withDb } from "./db";
 import { todayIn } from "./format";
 
@@ -31,8 +32,13 @@ export interface RateLimits {
 }
 
 /** The most recently recorded plan limits, from whichever computer reported last. */
-export async function latestRateLimits(): Promise<RateLimits | null> {
-  const [r] = await withDb((sql) => sql<RateLimits[]>`
+/** Runs on the given connection, or opens its own. */
+function on<T>(sql: postgres.Sql | undefined, fn: (s: postgres.Sql) => Promise<T>): Promise<T> {
+  return sql ? fn(sql) : withDb(fn);
+}
+
+export async function latestRateLimits(conn?: postgres.Sql): Promise<RateLimits | null> {
+  const [r] = await on(conn, (sql) => sql<RateLimits[]>`
     select machine, recorded_at as "recordedAt",
       five_hour_pct as "fiveHourPct", five_hour_resets_at as "fiveHourResetsAt",
       seven_day_pct as "sevenDayPct", seven_day_resets_at as "sevenDayResetsAt"
@@ -43,9 +49,12 @@ export async function latestRateLimits(): Promise<RateLimits | null> {
 }
 
 /** Totals from `days` days ago up to today, across all computers. days = 1 means today only. */
-export async function totalsSince(days: number): Promise<Totals & { machines: number; lastAt: Date | null; syncedAt: Date | null }> {
+export async function totalsSince(
+  days: number,
+  conn?: postgres.Sql,
+): Promise<Totals & { machines: number; lastAt: Date | null; syncedAt: Date | null }> {
   const today = todayIn();
-  const [r] = await withDb((sql) => sql.unsafe(
+  const [r] = await on(conn, (sql) => sql.unsafe(
     `select ${TOTALS}, count(distinct machine)::int as machines, max(last_at) as "lastAt",
        (select max(synced_at) from usage_dashboard.claude_code_usage) as "syncedAt"
      from usage_dashboard.claude_code_usage

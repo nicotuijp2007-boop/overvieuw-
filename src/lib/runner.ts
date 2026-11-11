@@ -2,7 +2,7 @@ import { services } from "@config/limits.config";
 import { connectors } from "@/connectors";
 import type { UsageMetric } from "@/connectors/types";
 import { lastKnown, saveSnapshots } from "./history";
-import { manualToMetric, readManual } from "./manual";
+import { manualToMetric, readManual, type ManualEntry } from "./manual";
 
 export interface ServiceResult {
   id: string;
@@ -51,6 +51,11 @@ function applyConfig(m: UsageMetric): UsageMetric {
 
 /** Run every enabled connector in parallel and merge in manual entries. Never throws. */
 export async function fetchAll(): Promise<ServiceResult[]> {
+  return (await fetchDashboard()).results;
+}
+
+/** Same as fetchAll, plus the raw manual entries (for the form), from a single read. */
+export async function fetchDashboard(): Promise<{ results: ServiceResult[]; manual: ManualEntry[] }> {
   const enabled = Object.entries(services).filter(([, s]) => s.enabled);
   const byId = new Map(connectors.map((c) => [c.id, c]));
 
@@ -109,5 +114,5 @@ export async function fetchAll(): Promise<ServiceResult[]> {
 
   // History for "last known value" and sparklines. Never let it break the page.
   await saveSnapshots(results.flatMap((r) => (r.error ? [] : r.metrics))).catch(() => {});
-  return results;
+  return { results, manual };
 }

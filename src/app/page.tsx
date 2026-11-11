@@ -7,8 +7,7 @@ import { ServiceCard } from "@/components/ServiceCard";
 import { formatDateTime, type Level } from "@/lib/format";
 import { byUrgency, headroom, type Headroom } from "@/lib/headroom";
 import { series } from "@/lib/history";
-import { readManual } from "@/lib/manual";
-import { fetchAll } from "@/lib/runner";
+import { fetchDashboard } from "@/lib/runner";
 
 // Always fetch fresh data on load / refresh.
 export const dynamic = "force-dynamic";
@@ -19,7 +18,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const { status } = await searchParams;
   const filter = LEVELS.find((l) => l === status);
 
-  const [results, manual] = await Promise.all([fetchAll(), readManual().catch(() => [])]);
+  const { results, manual } = await fetchDashboard();
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
