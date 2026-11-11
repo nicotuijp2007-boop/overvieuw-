@@ -5,8 +5,8 @@ import { Overview } from "@/components/Overview";
 import { RefreshButton } from "@/components/RefreshButton";
 import { ServiceCard } from "@/components/ServiceCard";
 import { formatDateTime, type Level } from "@/lib/format";
-import { byUrgency, headroom, type Headroom } from "@/lib/headroom";
 import { series } from "@/lib/history";
+import { limitsView } from "@/lib/present";
 import { fetchDashboard } from "@/lib/runner";
 
 // Always fetch fresh data on load / refresh.
@@ -22,14 +22,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
-  const limitsByService = new Map<string, Headroom[]>();
-  for (const r of results) {
-    limitsByService.set(r.id, r.metrics.flatMap((m) => headroom(m, r.name, now) ?? []));
-  }
-  const allLimits = [...limitsByService.values()].flat().sort(byUrgency);
-  const problems = results
-    .filter((r) => r.error && r.id !== "_manual")
-    .map((r) => ({ name: r.name, hasValues: Boolean(r.staleSince) }));
+  const { byService: limitsByService, all: allLimits, problems } = limitsView(results, now);
 
   // Sparklines: history since the start of each limit's period (or the last 7 days).
   const sparks = await series(

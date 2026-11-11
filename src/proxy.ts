@@ -5,7 +5,9 @@ import { safeEqual } from "@/lib/secrets";
  * Password protection for the whole dashboard (HTTP Basic auth: the browser shows a login
  * prompt and remembers it). Username: anything. Password: DASHBOARD_PASSWORD.
  *
- * /api/ingest/* is excluded: it has its own secret (INGEST_SECRET) for the sync script.
+ * Excluded, because they have their own secret: /api/ingest/* (INGEST_SECRET, for the sync
+ * script) and exactly /api/widget (WIDGET_TOKEN, read-only, for the home-screen widget).
+ * Also excluded: the web app manifest and the icons, which iOS fetches without the password.
  * Without DASHBOARD_PASSWORD the dashboard is open in `npm run dev` and refuses to serve in production.
  */
 export function proxy(req: NextRequest) {
@@ -32,5 +34,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/ingest/|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/ingest/|api/widget$|manifest.webmanifest$|icons/|icon.svg$|apple-icon.png$|_next/static|_next/image|favicon.ico).*)"],
 };
