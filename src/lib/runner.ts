@@ -40,6 +40,13 @@ export async function fetchAll(): Promise<ServiceResult[]> {
   const enabled = Object.entries(services).filter(([, s]) => s.enabled);
   const byId = new Map(connectors.map((c) => [c.id, c]));
 
+  // Start reading manual entries now, in parallel with the connectors.
+  let manualError: string | undefined;
+  const manualPromise = readManual().catch((err: Error) => {
+    manualError = err.message;
+    return [];
+  });
+
   const results: ServiceResult[] = await Promise.all(
     enabled.map(async ([id, cfg]) => {
       const fetchedAt = new Date().toISOString();
@@ -57,11 +64,7 @@ export async function fetchAll(): Promise<ServiceResult[]> {
 
   // Manual entries are added to their service's card. If the connector also returned
   // a metric with the same name, the most recent value wins.
-  let manualError: string | undefined;
-  const manual = await readManual().catch((err: Error) => {
-    manualError = err.message;
-    return [];
-  });
+  const manual = await manualPromise;
   for (const entry of manual) {
     const card = results.find((r) => r.id === entry.service);
     if (!card) continue; // service disabled or removed from config

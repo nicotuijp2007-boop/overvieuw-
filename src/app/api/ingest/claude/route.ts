@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { withDb } from "@/lib/db";
 import { safeEqual } from "@/lib/secrets";
 
 export const dynamic = "force-dynamic";
@@ -64,8 +64,7 @@ export async function POST(req: Request) {
     : null;
   if (rate && !rate.recorded_at) return bad("rateLimits.recordedAt is invalid.");
 
-  const sql = await db();
-  await sql.begin(async (tx) => {
+  await withDb((sql) => sql.begin(async (tx) => {
     // Upsert only: rows for days whose logs Claude Code has since deleted are kept.
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
@@ -88,7 +87,7 @@ export async function POST(req: Request) {
         where excluded.recorded_at > usage_dashboard.claude_rate_limits.recorded_at
       `;
     }
-  });
+  }));
 
   return Response.json({ ok: true, rows: rows.length, rateLimits: Boolean(rate) });
 }

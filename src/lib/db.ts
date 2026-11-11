@@ -6,25 +6,15 @@ import postgres from "postgres";
  * created automatically on first use, so it doesn't mix with your app's tables.
  *
  * DATABASE_URL: Supabase dashboard > Connect > "Transaction pooler" connection string.
+ *
+ * Every call opens its own connection and closes it afterwards. On Netlify, functions are
+ * frozen between requests, and a connection kept open across a freeze can be silently
+ * dead, which makes the next query hang until the function times out. A fresh connection
+ * per call avoids that, and the time limit below stops any query from hanging the page.
  */
-let client: postgres.Sql | null = null;
-let migrated: Promise<void> | null = null;
+const QUERY_TIMEOUT_MS = 7_000;
 
-export function sql(): postgres.Sql {
-  if (client) return client;
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set (see README: Database).");
-  const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
-  client = postgres(url, {
-    max: 3,
-    idle_timeout: 20,
-    connect_timeout: 8,
-    prepare: false, // required by Supabase's transaction pooler
-    ssl: local ? false : "require",
-    onnotice: () => {},
-  });
-  return client;
-}
+let migrated = false;
 
 const MIGRATION = `
 create schema if not exists usage_dashboard;
@@ -68,13 +58,42 @@ create table if not exists usage_dashboard.claude_code_usage (
 );
 `;
 
-/** Returns the client after making sure the schema exists (once per process). */
-export async function db(): Promise<postgres.Sql> {
-  const s = sql();
-  migrated ??= s.unsafe(MIGRATION).then(() => undefined).catch((err) => {
-    migrated = null; // retry next time
-    throw new Error(`Database setup failed: ${(err as Error).message}`);
+function connect(): postgres.Sql {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is not set (see README: Setup).");
+  const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+  return postgres(url, {
+    max: 1,
+    connect_timeout: 5,
+    prepare: false, // required by Supabase's transaction pooler
+    ssl: local ? false : "require",
+    onnotice: () => {},
   });
-  await migrated;
-  return s;
+}
+
+/** Runs `fn` with a fresh connection that is always closed afterwards, with a time limit. */
+export async function withDb<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
+  const sql = connect();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Database did not respond within ${QUERY_TIMEOUT_MS / 1000}s.`)), QUERY_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([
+      (async () => {
+        if (!migrated) {
+          await sql.unsafe(MIGRATION).catch((err: Error) => {
+            throw new Error(`Database setup failed: ${err.message}`);
+          });
+          migrated = true;
+        }
+        return fn(sql);
+      })(),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
+    // Don't wait for a graceful close if the connection is stuck.
+    sql.end({ timeout: 0.5 }).catch(() => {});
+  }
 }
