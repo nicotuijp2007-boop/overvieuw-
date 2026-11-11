@@ -5,6 +5,9 @@
 [build]
   command = "npm run build"
   publish = ".next"
+  # Skip the (paid) build when nothing the site uses changed, e.g. only scripts/ or README.
+  # Exit code 0 = skip. On the first build CACHED_COMMIT_REF is empty, so git fails and it builds.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- src package.json package-lock.json next.config.ts limits.config.ts postcss.config.mjs tsconfig.json netlify.toml"
 
 [build.environment]
   NODE_VERSION = "22"

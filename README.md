@@ -102,7 +102,16 @@ which the Netlify card's estimate doesn't include.
 
 ### 4. Each computer where you use Claude Code
 
-The scripts need only Node.js 20+ (no `npm install`).
+The scripts need only Node.js 20+ (no `npm install`). Quickest: clone the repo, then run
+the setup script from its folder. It writes `.env.local`, points Claude Code's status line
+at `scripts/statusline.mjs` (backing up `~/.claude/settings.json` first and keeping any
+status line you already have), and runs a test sync:
+
+```bash
+node scripts/setup-claude-sync.mjs --url https://your-site.netlify.app --secret <INGEST_SECRET> --name laptop
+```
+
+Or do the same by hand:
 
 1. Clone this repo somewhere permanent.
 2. Create `.env.local` in it:
