@@ -27,10 +27,9 @@ limits.config.ts          your plan caps, one entry per service (edit by hand)
 src/connectors/           one file per service + index.ts (the list) + types.ts
 src/lib/runner.ts         runs all connectors in parallel, merges manual values, fills limits
 src/lib/db.ts             Postgres connection; creates the usage_dashboard tables on first use
-src/proxy.ts              login (cookie or Basic auth) in front of everything except /api/ingest/, /api/widget
+src/proxy.ts              password prompt in front of everything except /api/ingest/, /api/widget, icons
 src/lib/present.ts        the Dutch texts and the order of the limits, shared by the page and /api/widget
 src/app/page.tsx          the dashboard
-src/app/login             login page for the home-screen app (cookie, 30 days); /logout to log out
 src/app/api/ingest/claude receives data from the sync script
 src/app/api/widget        read-only JSON for the widget (WIDGET_TOKEN); docs/prompts/widget-api-contract.md
 widgets/scriptable        the iPhone/Mac widget (Scriptable), with Node tests: npm run test:widget
@@ -99,9 +98,8 @@ Use one output as `INGEST_SECRET` (shared with your computers). Choose a
    | `NETLIFY_TOKEN` | for the Netlify card |
    | `SUPABASE_TOKEN` | for the Supabase card |
    | `WIDGET_TOKEN` | for the widget (see **Widget op iPhone en Mac**) |
-   | `SESSION_SECRET` | for the login page / home-screen app; without it only the Basic auth prompt works |
 
-4. Deploy. Open the site and log in with the password.
+4. Deploy. Open the site; the browser asks for a username (anything) and the password.
 
 Page loads also use a little of your Netlify credits (function compute and requests),
 which the Netlify card's estimate doesn't include.
@@ -202,16 +200,11 @@ wissen**. Laat het tokenveld leeg om de huidige token te houden.
 1. Open het dashboard in **Safari** op je iPhone.
 2. Tik op de deelknop (vierkant met pijl) → **Zet op beginscherm** → **Voeg toe**. Het icoon
    heet "Limieten".
-3. Open het via het icoon en log één keer in met je dashboardwachtwoord. Je blijft 30 dagen
-   ingelogd op dat toestel. Uitloggen: open `/logout` (bijv. in Safari:
-   `https://usage-dashboard-e00568.netlify.app/logout`; in de app zelf is er geen adresbalk).
+3. Open het via het icoon en log in met je dashboardwachtwoord (gebruikersnaam maakt niet uit).
 
-Waarom een loginpagina: in een app op het beginscherm toont iOS de inlogvraag van de browser
-(Basic auth) niet betrouwbaar en onthoudt hij hem niet. Daarom zet `/login` een cookie
-(alleen via HTTPS, niet leesbaar voor scripts, ondertekend met `SESSION_SECRET`). Basic auth
-blijft werken voor scripts en curl. Dit vraagt één extra variabele in Netlify:
-`SESSION_SECRET` (maak hem zoals de widgettoken). Zonder die variabele werkt alles zoals
-vroeger, alleen niet de loginpagina.
+Let op: in een app op het beginscherm toont iOS de inlogvraag van de browser (Basic auth) niet
+altijd betrouwbaar en onthoudt hij hem niet altijd. Een eigen login (met Supabase) volgt later.
+Werkt het icoon niet, open het dashboard dan gewoon in Safari.
 
 ### Token vervangen (roteren)
 
@@ -221,9 +214,6 @@ Doe dit als je telefoon kwijt is of als de token ergens terecht is gekomen waar 
 2. Deploy. Vanaf dat moment werkt de oude token niet meer: de widget toont "Token onjuist"
    (of de laatste gegevens met "niet ververst").
 3. In Scriptable: ▶︎ → **Instellingen wijzigen of wissen** → plak de nieuwe token → **Opslaan**.
-
-Alle apparaten uitloggen bij het dashboard: vervang `SESSION_SECRET` (of je wachtwoord) en
-deploy.
 
 ## Claude (Pro)
 
@@ -349,7 +339,7 @@ never logs tokens. On Netlify, secrets go in the site's environment variables.
 | `SUPABASE_TOKEN` | supabase.com/dashboard → avatar → Account preferences → Access Tokens (scoped, read-only) |
 | `DATABASE_URL` | Supabase → Connect → Transaction pooler |
 | `DASHBOARD_PASSWORD`, `INGEST_SECRET` | you choose them (see Setup) |
-| `WIDGET_TOKEN`, `SESSION_SECRET` | you make them: `openssl rand -hex 32`, or a strong password from the iPhone Passwords app |
+| `WIDGET_TOKEN` | you make it: `openssl rand -hex 32`, or a strong password from the iPhone Passwords app |
 | `N8N_API_KEY` (planned) | your n8n instance → Settings → n8n API |
 
 ## Adding a new connector
