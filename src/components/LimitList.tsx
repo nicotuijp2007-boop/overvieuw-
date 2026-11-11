@@ -2,24 +2,9 @@ import Link from "next/link";
 import { formatDateTime, formatDuration, formatNumber, freshness, type Level } from "@/lib/format";
 import type { Headroom } from "@/lib/headroom";
 import type { Point } from "@/lib/history";
+import { leftText, urgencyText } from "@/lib/present";
 import { Sparkline } from "./Sparkline";
 import { Meter, STATUS, StatusBadge, StatusIcon } from "./Status";
-
-/** "28% over" for percentage limits; "165 credits over" otherwise. */
-export function leftText(h: Headroom): string {
-  if (h.metric.unit === "%") return `${h.leftPct}% over`;
-  return `${formatNumber(h.remaining)} ${h.metric.unit} over`;
-}
-
-/** The urgency line: when it runs out, or what's expected at the reset. */
-export function urgencyText(h: Headroom, now: number): { text: string; urgent: boolean } | null {
-  if (h.metric.used >= (h.metric.limit ?? Infinity)) return { text: "Limiet bereikt", urgent: true };
-  if (h.runsOutAt) return { text: `Op over ~${formatDuration(Date.parse(h.runsOutAt) - now)}, vóór de reset`, urgent: true };
-  if (h.projectedPct != null) {
-    return { text: `Bij dit tempo ~${Math.max(100 - Math.round(h.projectedPct), 0)}% over bij de reset`, urgent: false };
-  }
-  return null;
-}
 
 function usedText(h: Headroom): string {
   const m = h.metric;

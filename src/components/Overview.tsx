@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Level } from "@/lib/format";
 import type { Headroom } from "@/lib/headroom";
-import { leftText, urgencyText } from "./LimitList";
+import { headline as headlineFor, levelCounts, problemText } from "@/lib/present";
 import { STATUS, StatusIcon } from "./Status";
 
 /**
@@ -19,42 +19,18 @@ export function Overview({
   problems: { name: string; hasValues: boolean }[];
   filter?: Level;
 }) {
-  const counts: Record<Level, number> = { ok: 0, warn: 0, danger: 0 };
-  for (const h of items) counts[h.level]++;
-  const top = items[0];
-  const urgency = top ? urgencyText(top, now) : null;
-  const attention = top && (top.level !== "ok" || urgency?.urgent);
-
-  let headline: React.ReactNode;
-  if (!top) headline = <span className="text-secondary">Nog geen limieten.</span>;
-  else if (attention) {
-    headline = (
-      <>
-        <StatusIcon level={top.level} className="h-5 w-5" />
-        <span>
-          <span className="font-semibold">
-            {top.serviceName} · {top.metric.metric}
-          </span>{" "}
-          <span className="text-secondary">
-            {leftText(top)}
-            {urgency ? ` · ${urgency.text.charAt(0).toLowerCase()}${urgency.text.slice(1)}` : ""}
-          </span>
-        </span>
-      </>
-    );
-  } else {
-    headline = (
-      <>
-        <StatusIcon level="ok" className="h-5 w-5" />
-        <span>
-          <span className="font-semibold">Alles binnen marge</span>{" "}
-          <span className="text-secondary">
-            · krapst: {top.serviceName} {top.metric.metric}, {leftText(top)}
-          </span>
-        </span>
-      </>
-    );
-  }
+  const counts = levelCounts(items);
+  const h = headlineFor(items, now);
+  const headline = h.level ? (
+    <>
+      <StatusIcon level={h.level} className="h-5 w-5" />
+      <span>
+        <span className="font-semibold">{h.title}</span> <span className="text-secondary">{h.detail}</span>
+      </span>
+    </>
+  ) : (
+    <span className="text-secondary">{h.title}</span>
+  );
 
   return (
     <section className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-border bg-surface px-5 py-4">
@@ -64,9 +40,7 @@ export function Overview({
           <p className="mt-1.5 flex items-start gap-1.5 text-sm text-secondary">
             <StatusIcon level="warn" className="mt-0.5 h-3.5 w-3.5" />
             <span>
-              {problems
-                .map((p) => (p.hasValues ? `${p.name} kon niet verversen (laatst bekende waarden)` : `${p.name} kon niet laden`))
-                .join(" · ")}
+              {problems.map(problemText).join(" · ")}
             </span>
           </p>
         )}
