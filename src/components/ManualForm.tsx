@@ -42,7 +42,7 @@ export function ManualForm({ services, entries }: Props) {
       <h2 className="font-semibold">Manual entry</h2>
       <p className="mt-1 text-sm text-muted">
         For values no API provides (e.g. Claude Pro session/weekly %). Entering the same service + metric again
-        updates it. Stored in <code>data/manual.json</code>.
+        updates it. Stored in your Supabase database.
       </p>
 
       <form onSubmit={onSubmit} className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">

@@ -29,6 +29,19 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return `${formatDuration(ms)} ago`;
 }
 
+/**
+ * Times are shown in DASHBOARD_TIMEZONE (e.g. "Europe/Amsterdam"). On Netlify the server runs
+ * in UTC, so set it there; locally it defaults to your computer's timezone.
+ */
+function timeZone(): string | undefined {
+  return process.env.DASHBOARD_TIMEZONE || undefined;
+}
+
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+  return new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: timeZone() });
+}
+
+/** Today's date as YYYY-MM-DD in DASHBOARD_TIMEZONE. */
+export function todayIn(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timeZone(), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }

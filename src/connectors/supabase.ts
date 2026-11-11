@@ -106,7 +106,7 @@ export const supabase: Connector = {
   id: "supabase",
   async fetchUsage() {
     const token = process.env.SUPABASE_TOKEN;
-    if (!token) throw new Error("SUPABASE_TOKEN is not set in .env.local.");
+    if (!token) throw new Error("SUPABASE_TOKEN is not set (.env.local locally, or Netlify environment variables).");
 
     let projects = await call<Project[]>("/projects", token);
     const only = process.env.SUPABASE_PROJECTS?.split(",").map((s) => s.trim()).filter(Boolean);

@@ -15,7 +15,8 @@ export interface ServiceResult {
   fetchedAt: string;
 }
 
-const TIMEOUT_MS = 15_000;
+// Netlify functions stop after 10s, so each connector gets 8s and fails on its own card.
+const TIMEOUT_MS = 8_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {

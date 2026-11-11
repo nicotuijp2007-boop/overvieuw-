@@ -1,76 +1,130 @@
 # Usage limits dashboard
 
 A personal dashboard that shows, in one place, how close you are to the limits of the
-services you use (Claude, Supabase, Netlify, n8n, …). It runs locally on your own machine
-because one data source is your local Claude Code logs.
+services you use (Claude, Supabase, Netlify, n8n, …). It's hosted on Netlify behind a
+password, so you can open it from any computer or phone. Data that only exists on your
+computers (Claude Code logs and plan limits) is sent to it by a small sync script.
 
-> **Status:** dashboard, manual entries, Claude Code, Netlify and Supabase connectors are done.
-> n8n is planned for when you start using it; SQLite history and trend charts are next.
-
-## Setup
-
-Requires Node.js 20+.
-
-```bash
-npm install
-```
-
-```bash
-cp .env.example .env.local
-```
-
-```bash
-npm run dev
-```
-
-Open http://localhost:3000. There are two demo cards (`mock`, and `mock-broken`, which
-shows how an error looks). They're turned off; set `enabled: true` for them in
-`limits.config.ts` to see them.
+> **Status:** dashboard, manual entries, Claude, Netlify and Supabase connectors, hosting
+> on Netlify. n8n is planned for when you start using it; history and trend charts are next.
 
 ## How it works
 
 ```
-limits.config.ts        your plan caps, one entry per service (edit by hand)
-.env.local              tokens (gitignored; .env.example is the template)
-data/manual.json        manually entered values (gitignored, created on first save)
-src/connectors/
-  types.ts              UsageMetric + Connector interface
-  index.ts              list of all connectors
-  mock.ts               demo connectors
-src/lib/runner.ts       runs all connectors in parallel, merges manual values, fills limits
-src/app/page.tsx        the dashboard
-src/app/api/usage       GET: fetch everything as JSON
-src/app/api/manual      GET/POST/DELETE manual values
+                 ┌─────────── Netlify (password protected) ───────────┐
+browser ───────▶ │ dashboard ──▶ Netlify API, Supabase Management API │
+                 │     │                                               │
+your computers ─▶│ /api/ingest/claude (INGEST_SECRET)                  │
+(sync script)    └─────┼───────────────────────────────────────────────┘
+                       ▼
+          Supabase Postgres, schema usage_dashboard
+          (manual entries, Claude usage + plan limits)
+```
+
+```
+limits.config.ts          your plan caps, one entry per service (edit by hand)
+.env.local                secrets for local use (gitignored; .env.example is the template)
+src/connectors/           one file per service + index.ts (the list) + types.ts
+src/lib/runner.ts         runs all connectors in parallel, merges manual values, fills limits
+src/lib/db.ts             Postgres connection; creates the usage_dashboard tables on first use
+src/proxy.ts              password prompt in front of everything except /api/ingest/
+src/app/page.tsx          the dashboard
+src/app/api/ingest/claude receives data from the sync script
+scripts/statusline.mjs    Claude Code status line: records plan limits, triggers the sync
+scripts/sync-claude.mjs   sends Claude Code usage + plan limits to the dashboard
 ```
 
 - Every page load or **Refresh** fetches all enabled connectors in parallel, on the server.
   Tokens never reach the browser.
-- A connector that throws or takes longer than 15s shows an error on **its own card only**.
+- A connector that throws or takes longer than 8s shows an error on **its own card only**
+  (Netlify stops functions after 10s).
 - If an API doesn't return the plan cap, the limit comes from `limits.config.ts`.
 - Bar colors: green under 70%, yellow 70–90%, red above 90%.
-- Each metric has a badge for where its value came from: `api`, `local` (files on
-  your machine) or `manual`.
+- Each metric has a badge for where its value came from: `api`, `local` (sent from your
+  computers) or `manual`.
+
+## Setup
+
+### 1. Database (Supabase)
+
+The dashboard stores its own data in your Supabase project, in a separate
+`usage_dashboard` schema (created automatically, it doesn't touch your other tables).
+
+In the Supabase dashboard: **Connect** (top bar) → **Transaction pooler** → copy the
+connection string (port 6543) and put your database password in it. Don't know the
+password? Project Settings → Database → Reset database password. That's your
+`DATABASE_URL`.
+
+### 2. Secrets
+
+Pick two new random values:
+
+```bash
+node -e "console.log(crypto.randomUUID()+crypto.randomUUID())"
+```
+
+Use one output as `INGEST_SECRET` (shared with your computers). Choose a
+`DASHBOARD_PASSWORD` you can type on your phone.
+
+### 3. Netlify site
+
+1. app.netlify.com → **Add new project** → **Import an existing project** → GitHub →
+   this repository.
+2. **Branch to deploy: `main`.** Every production deploy costs 15 of your 300 monthly
+   credits on the Free plan, so deploy from a branch that only changes when you want an
+   update. Don't deploy from a branch that gets lots of pushes.
+3. Before deploying, add these under **Site configuration → Environment variables**
+   (see `.env.example` for what each is):
+
+   | Variable | Required |
+   |---|---|
+   | `DATABASE_URL` | yes |
+   | `DASHBOARD_PASSWORD` | yes (the site refuses to load without it) |
+   | `INGEST_SECRET` | yes, for Claude data |
+   | `DASHBOARD_TIMEZONE` | recommended, e.g. `Europe/Amsterdam` (Netlify runs in UTC) |
+   | `NETLIFY_TOKEN` | for the Netlify card |
+   | `SUPABASE_TOKEN` | for the Supabase card |
+
+4. Deploy. Open the site; the browser asks for a username (anything) and the password.
+
+Page loads also use a little of your Netlify credits (function compute and requests),
+which the Netlify card's estimate doesn't include.
+
+### 4. Each computer where you use Claude Code
+
+The scripts need only Node.js 20+ (no `npm install`).
+
+1. Clone this repo somewhere permanent.
+2. Create `.env.local` in it:
+
+   ```
+   DASHBOARD_URL=https://your-site.netlify.app
+   INGEST_SECRET=the-same-value-as-on-netlify
+   MACHINE_NAME=work-laptop
+   ```
+
+3. Add the status line to `~/.claude/settings.json` (see **Claude (Pro)** below).
+4. Test it once: `npm run sync`. It should print `Sent … session-days …`.
+
+### Running locally instead
+
+`npm install`, put the dashboard variables in `.env.local`, then `npm run dev` and open
+http://localhost:3000. Without `DASHBOARD_PASSWORD`, `npm run dev` doesn't ask for a
+password. Point `DASHBOARD_URL` at `http://localhost:3000` to sync to the local copy.
+
+The two demo cards (`mock`, and `mock-broken` to show how errors look) are off; set
+`enabled: true` for them in `limits.config.ts` to see them.
 
 ## Claude (Pro)
 
-The Claude card combines two local sources. Neither needs a token.
+There's no API for Pro plan usage, so the Claude card is filled from your computers by
+`scripts/sync-claude.mjs`. It sends two things:
 
-**1. Token usage from Claude Code logs.** The connector reads every
-`~/.claude/projects/**/*.jsonl` file (including subagent logs) and shows today's and the last
-7 days' tokens. Click **Details** on the card for per-day and per-session tables.
-- Claude Code writes the same response to the log several times, so entries are
-  de-duplicated on message id + request id (as `ccusage` does).
-- Only token counts, model, time, session id and project folder are read. Conversation
-  text is ignored.
-- Claude Code deletes logs older than `cleanupPeriodDays` (default 30), so older days
-  drop out of the Details page.
-- Logs somewhere else? Set `CLAUDE_CONFIG_DIR` in `.env.local`.
-
-**2. Session (5-hour) and weekly limits via the status line.** There is no API for Pro plan
-limits. Claude Code does pass them (as a %, with reset times) to your
-[status line](https://code.claude.com/docs/en/statusline) command, so
-`scripts/statusline.mjs` saves them to `data/claude-rate-limits.json` for the dashboard.
-Add this to `~/.claude/settings.json`, using the absolute path to this repo:
+**1. Session (5-hour) and weekly limits, via the status line.** Claude Code passes these (as
+a %, with reset times) to your [status line](https://code.claude.com/docs/en/statusline)
+command. `scripts/statusline.mjs` saves them and starts the sync in the background, at
+most every 5 minutes. Add this to `~/.claude/settings.json`, using the absolute path to
+this repo on that computer:
 
 ```json
 {
@@ -88,20 +142,32 @@ have a status line command, keep it by putting it after `--`:
 "command": "node /absolute/path/to/overvieuw-/scripts/statusline.mjs -- ~/.claude/my-statusline.sh"
 ```
 
-Limitations:
-- The values only update while you're using Claude Code. Usage on claude.ai counts toward
-  the same limits but won't show until Claude Code's next response.
-- Claude Code only sends limits after the first response in a session.
-- Once a window's reset time passes, the dashboard shows 0% with a note until Claude Code
-  records a new value.
+**2. Claude Code token usage, from local logs.** The sync reads
+`~/.claude/projects/**/*.jsonl` (including subagent logs) for the last 35 days and sends
+totals per session per day. Click **Details** on the card for per-day and per-session tables.
+- Claude Code writes the same response to the log several times, so entries are
+  de-duplicated on message id + request id (as `ccusage` does).
+- Only token counts, model, time, session id and the project **folder name** are sent.
+  Conversation text and full paths never leave your computer.
+- Claude Code deletes logs after `cleanupPeriodDays` (default 30), but the dashboard keeps
+  what was already sent.
+- Logs somewhere else? Set `CLAUDE_CONFIG_DIR` in that computer's `.env.local`.
 
-You can always override these with a manual entry. When there's both a manual entry and a
-recorded value for the same metric, the newer one is shown.
+Limitations:
+- Plan limits only update while you use Claude Code. Usage on claude.ai counts toward the
+  same limits but won't show until Claude Code's next response.
+- Claude Code only sends limits after the first response in a session.
+- Once a window's reset time passes, the card shows 0% with a note until a new value comes in.
+- With several computers, the most recently recorded limits are shown, and token usage
+  is added up across all of them.
+
+You can always override a value with a manual entry. When there's both a manual entry and
+a recorded value for the same metric, the newer one is shown.
 
 ## Netlify
 
-Set `NETLIFY_TOKEN` in `.env.local` (and `NETLIFY_ACCOUNT` to a team slug if you're in
-more than one team). The card shows, for the current billing period:
+Set `NETLIFY_TOKEN` (and `NETLIFY_ACCOUNT` to a team slug if you're in more than one
+team). The card shows, for the current billing period:
 
 - **Credits**: an **estimate** of credits used, out of your plan's included credits.
   Netlify's API does return a "credits used" field, but it isn't kept up to date (it said 0
@@ -119,7 +185,7 @@ against your team's **Usage** page now and then.
 
 ## Supabase
 
-Set `SUPABASE_TOKEN` in `.env.local`. Create it under supabase.com/dashboard → avatar →
+Set `SUPABASE_TOKEN`. Create it under supabase.com/dashboard → avatar →
 Account preferences → Access Tokens. Use a **scoped** token with **read** access to
 projects, usage/analytics, database and disk config, and nothing else.
 `SUPABASE_PROJECTS` (comma-separated refs or names) limits the card to some projects.
@@ -155,39 +221,25 @@ Until then, the n8n card is hidden (`enabled: false` in `limits.config.ts`).
 
 ## Manual entries
 
-For values no API exposes (for example Claude Pro's session and weekly usage), use the
-**Manual entry** form at the bottom of the page, or edit `data/manual.json` directly:
+For values no API exposes (for example Supabase egress), use the **Manual entry** form at
+the bottom of the dashboard. They're stored in the `usage_dashboard.manual_entries` table.
 
-```json
-[
-  {
-    "service": "claude",
-    "metric": "Session (5-hour)",
-    "used": 73,
-    "limit": null,
-    "unit": "%",
-    "resetsAt": "2026-11-10T05:00:00.000Z",
-    "updatedAt": "2026-11-10T00:39:00.000Z"
-  }
-]
-```
-
-`service` must be a key from `limits.config.ts`. A `limit` of `null` means "use the limit
-from config". Saving the same service + metric again replaces the old value. Manual values
+The service must be a key from `limits.config.ts`. Leave the limit empty to use the limit
+from config. Saving the same service + metric again replaces the old value. Manual values
 show a **manual** badge and when they were entered.
 
-## Tokens
+## Secrets
 
-Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
+Never commit secrets: `.env*` files except `.env.example` are gitignored, and the app
+never logs tokens. On Netlify, secrets go in the site's environment variables.
 
-| Service | Variable | Where to create it |
-|---|---|---|
-| Netlify | `NETLIFY_TOKEN` | app.netlify.com → User settings → Applications → Personal access tokens |
-| Supabase | `SUPABASE_TOKEN` | supabase.com/dashboard → Account → Access Tokens (starts with `sbp_`) |
-| n8n | `N8N_API_KEY`, `N8N_BASE_URL` | Your n8n instance → Settings → n8n API |
-| Claude Code | none | Reads local logs under `~/.claude/projects`, plus the status line file (see above) |
-
-(This table is filled in further as each connector is added.)
+| Variable | Where to get it |
+|---|---|
+| `NETLIFY_TOKEN` | app.netlify.com → User settings → Applications → Personal access tokens |
+| `SUPABASE_TOKEN` | supabase.com/dashboard → avatar → Account preferences → Access Tokens (scoped, read-only) |
+| `DATABASE_URL` | Supabase → Connect → Transaction pooler |
+| `DASHBOARD_PASSWORD`, `INGEST_SECRET` | you choose them (see Setup) |
+| `N8N_API_KEY` (planned) | your n8n instance → Settings → n8n API |
 
 ## Adding a new connector
 
@@ -200,7 +252,7 @@ Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
      id: "example", // must match the key in limits.config.ts
      async fetchUsage() {
        const token = process.env.EXAMPLE_TOKEN;
-       if (!token) throw new Error("EXAMPLE_TOKEN is not set in .env.local");
+       if (!token) throw new Error("EXAMPLE_TOKEN is not set");
 
        const res = await fetch("https://api.example.com/usage", {
          headers: { Authorization: `Bearer ${token}` },
@@ -236,12 +288,14 @@ Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
    },
    ```
 
-4. If it needs a token, add the variable (empty) to `.env.example`.
+4. If it needs a token, add the variable (empty) to `.env.example`, and to the Netlify
+   environment variables.
 
 ## Roadmap
 
 1. ~~Scaffold, config, connector interface, mock connector~~
 2. ~~Dashboard UI with mock data and manual entries~~
 3. Real connectors: ~~Claude Code local logs~~ → ~~Netlify~~ → ~~Supabase~~ → n8n (when you start using it)
-4. SQLite history of every fetch and 30-day trend charts
+3b. ~~Hosting on Netlify with password, Supabase storage and the sync script~~
+4. History of every fetch (in Supabase) and 30-day trend charts
 5. Later: scheduled fetching and alerts above 90%

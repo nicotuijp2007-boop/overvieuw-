@@ -1,10 +1,7 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import type { UsageMetric } from "@/connectors/types";
+import { db } from "./db";
 
-/** Manual values live in data/manual.json (gitignored). Editable by hand or via the form. */
-const FILE = path.join(process.cwd(), "data", "manual.json");
-
+/** Manual values, stored in usage_dashboard.manual_entries. Added via the form on the dashboard. */
 export interface ManualEntry {
   service: string;
   metric: string;
@@ -16,33 +13,38 @@ export interface ManualEntry {
 }
 
 export async function readManual(): Promise<ManualEntry[]> {
-  try {
-    const parsed = JSON.parse(await fs.readFile(FILE, "utf8"));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw new Error(`data/manual.json could not be read: ${(err as Error).message}`);
-  }
-}
-
-async function write(entries: ManualEntry[]) {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
-  const tmp = `${FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(entries, null, 2) + "\n");
-  await fs.rename(tmp, FILE);
+  const s = await db();
+  const rows = await s<{ service: string; metric: string; used: number; limit: number | null; unit: string; resets_at: Date | null; updated_at: Date }[]>`
+    select service, metric, used, "limit", unit, resets_at, updated_at
+    from usage_dashboard.manual_entries
+    order by service, metric
+  `;
+  return rows.map((r) => ({
+    service: r.service,
+    metric: r.metric,
+    used: r.used,
+    limit: r.limit,
+    unit: r.unit,
+    resetsAt: r.resets_at?.toISOString(),
+    updatedAt: r.updated_at.toISOString(),
+  }));
 }
 
 /** Insert or replace the entry with the same service + metric. */
-export async function upsertManual(entry: ManualEntry) {
-  const entries = (await readManual()).filter(
-    (e) => !(e.service === entry.service && e.metric === entry.metric),
-  );
-  entries.push(entry);
-  await write(entries);
+export async function upsertManual(e: ManualEntry) {
+  const s = await db();
+  await s`
+    insert into usage_dashboard.manual_entries (service, metric, used, "limit", unit, resets_at, updated_at)
+    values (${e.service}, ${e.metric}, ${e.used}, ${e.limit}, ${e.unit}, ${e.resetsAt ?? null}, ${e.updatedAt})
+    on conflict (service, metric) do update set
+      used = excluded.used, "limit" = excluded."limit", unit = excluded.unit,
+      resets_at = excluded.resets_at, updated_at = excluded.updated_at
+  `;
 }
 
 export async function deleteManual(service: string, metric: string) {
-  await write((await readManual()).filter((e) => !(e.service === service && e.metric === metric)));
+  const s = await db();
+  await s`delete from usage_dashboard.manual_entries where service = ${service} and metric = ${metric}`;
 }
 
 export function manualToMetric(e: ManualEntry): UsageMetric {

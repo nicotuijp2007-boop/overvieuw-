@@ -1,0 +1,8 @@
+# Netlify detects Next.js and sets up its runtime automatically.
+# Note: on credit-based plans every production deploy costs credits (15 on Free),
+# so production deploys only happen from the branch you choose in Netlify (see README).
+[build]
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "22"

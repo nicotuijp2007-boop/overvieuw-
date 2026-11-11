@@ -4,7 +4,9 @@
  *
  * Claude Code pipes a JSON object to the status line command. On Pro/Max plans it includes
  * rate_limits.five_hour / rate_limits.seven_day ({ used_percentage, resets_at }).
- * This script saves just those numbers to data/claude-rate-limits.json, then prints a status line.
+ * This script saves just those numbers to data/claude-rate-limits.json, starts
+ * scripts/sync-claude.mjs in the background (at most every 5 minutes) to send them and your
+ * Claude Code token usage to the dashboard, then prints a status line.
  *
  * Setup (~/.claude/settings.json):
  *   "statusLine": { "type": "command", "command": "node /absolute/path/to/repo/scripts/statusline.mjs" }
@@ -13,12 +15,15 @@
  * input and its output is printed instead of ours:
  *   "command": "node /path/to/repo/scripts/statusline.mjs -- ~/.claude/my-statusline.sh"
  */
-import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "data", "claude-rate-limits.json");
+const SCRIPTS = dirname(fileURLToPath(import.meta.url));
+const OUT = join(SCRIPTS, "..", "data", "claude-rate-limits.json");
+const LAST_SYNC = join(SCRIPTS, "..", "data", ".last-sync");
+const SYNC_EVERY_MS = 5 * 60_000;
 
 let raw = "";
 try {
@@ -49,6 +54,19 @@ if (fiveHour || sevenDay) {
     // Never break the status line because of the dashboard.
   }
 }
+
+// Background sync, throttled. Detached so the status line never waits on the network.
+try {
+  let last = 0;
+  try {
+    last = statSync(LAST_SYNC).mtimeMs;
+  } catch {}
+  if (Date.now() - last > SYNC_EVERY_MS) {
+    mkdirSync(dirname(LAST_SYNC), { recursive: true });
+    writeFileSync(LAST_SYNC, "");
+    spawn(process.execPath, [join(SCRIPTS, "sync-claude.mjs"), "--quiet"], { detached: true, stdio: "ignore" }).unref();
+  }
+} catch {}
 
 const sep = process.argv.indexOf("--");
 if (sep !== -1 && process.argv.length > sep + 1) {

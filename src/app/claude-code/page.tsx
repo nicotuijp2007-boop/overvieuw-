@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { byDay, bySession, loadEntries, type Totals } from "@/lib/claudeLogs";
+import { byDay, bySession, type Totals } from "@/lib/claudeData";
 import { formatDateTime, formatNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -35,19 +35,26 @@ const totalsHeaders = (
 );
 
 export default async function ClaudeCodePage() {
-  const { entries, dirs } = await loadEntries();
-  const days = byDay(entries).slice(0, 30);
-  const sessions = bySession(entries).slice(0, 25);
+  let days: Awaited<ReturnType<typeof byDay>> = [];
+  let sessions: Awaited<ReturnType<typeof bySession>> = [];
+  let error: string | null = null;
+  try {
+    [days, sessions] = await Promise.all([byDay(30), bySession(25)]);
+  } catch (err) {
+    error = (err as Error).message;
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <Link href="/" className="text-sm text-accent hover:underline">← Dashboard</Link>
       <h1 className="mt-2 text-2xl font-semibold">Claude Code token usage</h1>
       <p className="mt-1 text-sm text-muted">
-        From local logs in {dirs.length ? dirs.join(", ") : "(none found)"}. Claude Code deletes logs older than{" "}
-        <code>cleanupPeriodDays</code> (30 by default), so older days disappear here. History is kept once snapshots
-        are added. Tokens are not the same as your Pro plan limits, which are measured in % on the dashboard.
+        Sent from your computers by <code>scripts/sync-claude.mjs</code>, so it's kept even after Claude Code deletes
+        old logs. Tokens are not the same as your Pro plan limits, which are measured in % on the dashboard.
       </p>
+      {error && (
+        <p className="mt-4 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p>
+      )}
 
       <h2 className="mt-8 mb-2 font-semibold">Per day (last 30 days with activity)</h2>
       <div className="overflow-x-auto rounded-lg border border-border bg-surface">
@@ -70,7 +77,7 @@ export default async function ClaudeCodePage() {
               </tr>
             ))}
             {days.length === 0 && (
-              <tr><td colSpan={8} className={`${td} text-muted`}>No usage found.</td></tr>
+              <tr><td colSpan={8} className={`${td} text-muted`}>No usage received yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -82,6 +89,7 @@ export default async function ClaudeCodePage() {
           <thead className="border-b border-border">
             <tr>
               <th className={th}>Last activity</th>
+              <th className={th}>Computer</th>
               <th className={th}>Project</th>
               {totalsHeaders}
               <th className={th}>Models</th>
@@ -89,17 +97,16 @@ export default async function ClaudeCodePage() {
           </thead>
           <tbody className="divide-y divide-border">
             {sessions.map((s) => (
-              <tr key={s.sessionId}>
-                <td className={td}>{formatDateTime(new Date(s.last).toISOString())}</td>
-                <td className={td} title={`${s.project}\nsession ${s.sessionId}`}>
-                  {s.project.split(/[\\/]/).filter(Boolean).pop() ?? "?"}
-                </td>
+              <tr key={`${s.machine}:${s.sessionId}`}>
+                <td className={td}>{formatDateTime(s.lastAt.toISOString())}</td>
+                <td className={td}>{s.machine}</td>
+                <td className={td} title={`session ${s.sessionId}`}>{s.project || "?"}</td>
                 <TotalsCells t={s} />
                 <td className={`${td} text-muted`}>{s.models.map(shortModel).join(", ")}</td>
               </tr>
             ))}
             {sessions.length === 0 && (
-              <tr><td colSpan={8} className={`${td} text-muted`}>No sessions found.</td></tr>
+              <tr><td colSpan={9} className={`${td} text-muted`}>No sessions received yet.</td></tr>
             )}
           </tbody>
         </table>

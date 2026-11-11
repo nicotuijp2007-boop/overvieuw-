@@ -74,7 +74,7 @@ export const netlify: Connector = {
   id: "netlify",
   async fetchUsage() {
     const token = process.env.NETLIFY_TOKEN;
-    if (!token) throw new Error("NETLIFY_TOKEN is not set in .env.local.");
+    if (!token) throw new Error("NETLIFY_TOKEN is not set (.env.local locally, or Netlify environment variables).");
 
     const accounts = await get<Account[]>("/accounts", token);
     const wanted = process.env.NETLIFY_ACCOUNT;
