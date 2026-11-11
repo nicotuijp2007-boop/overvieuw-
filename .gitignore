@@ -11,3 +11,6 @@ next-env.d.ts
 # Personal data written by the app
 data/*
 !data/.gitkeep
+
+# Netlify local build output
+.netlify/
