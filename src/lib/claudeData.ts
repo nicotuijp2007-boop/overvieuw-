@@ -43,15 +43,16 @@ export async function latestRateLimits(): Promise<RateLimits | null> {
 }
 
 /** Totals from `days` days ago up to today, across all computers. days = 1 means today only. */
-export async function totalsSince(days: number): Promise<Totals & { machines: number; lastAt: Date | null }> {
+export async function totalsSince(days: number): Promise<Totals & { machines: number; lastAt: Date | null; syncedAt: Date | null }> {
   const today = todayIn();
   const [r] = await withDb((sql) => sql.unsafe(
-    `select ${TOTALS}, count(distinct machine)::int as machines, max(last_at) as "lastAt"
+    `select ${TOTALS}, count(distinct machine)::int as machines, max(last_at) as "lastAt",
+       (select max(synced_at) from usage_dashboard.claude_code_usage) as "syncedAt"
      from usage_dashboard.claude_code_usage
      where day > $1::date - $2::int and day <= $1::date`,
     [today, days],
   ));
-  return r as unknown as Totals & { machines: number; lastAt: Date | null };
+  return r as unknown as Totals & { machines: number; lastAt: Date | null; syncedAt: Date | null };
 }
 
 export interface DayRow extends Totals {

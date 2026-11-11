@@ -27,10 +27,10 @@ async function get<T>(path: string, token: string): Promise<T> {
     res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
   } catch (err) {
     const cause = (err as { cause?: { code?: string; message?: string } }).cause;
-    throw new Error(`Could not reach api.netlify.com (${cause?.code ?? cause?.message ?? (err as Error).message})`);
+    throw new Error(`Kan api.netlify.com niet bereiken (${cause?.code ?? cause?.message ?? (err as Error).message})`);
   }
-  if (res.status === 401) throw new Error("Netlify rejected the token (HTTP 401). Check NETLIFY_TOKEN in .env.local.");
-  if (!res.ok) throw new Error(`Netlify API ${path.split("?")[0]} returned HTTP ${res.status}`);
+  if (res.status === 401) throw new Error("Netlify weigert het token (HTTP 401). Controleer NETLIFY_TOKEN.");
+  if (!res.ok) throw new Error(`Netlify API ${path.split("?")[0]} gaf HTTP ${res.status}`);
   return res.json() as Promise<T>;
 }
 
@@ -74,14 +74,14 @@ export const netlify: Connector = {
   id: "netlify",
   async fetchUsage() {
     const token = process.env.NETLIFY_TOKEN;
-    if (!token) throw new Error("NETLIFY_TOKEN is not set (.env.local locally, or Netlify environment variables).");
+    if (!token) throw new Error("NETLIFY_TOKEN ontbreekt (in .env.local of de Netlify-omgevingsvariabelen).");
 
     const accounts = await get<Account[]>("/accounts", token);
     const wanted = process.env.NETLIFY_ACCOUNT;
     const account = wanted
       ? accounts.find((a) => a.slug === wanted)
       : accounts.find((a) => a.default) ?? accounts[0];
-    if (!account) throw new Error(wanted ? `No Netlify team with slug "${wanted}".` : "No Netlify team found.");
+    if (!account) throw new Error(wanted ? `Geen Netlify-team met slug "${wanted}".` : "Geen Netlify-team gevonden.");
 
     const periodStart = Date.parse(account.current_usage_period_start ?? "") || Date.now() - 30 * 86_400_000;
     const resetsAt = account.next_usage_period_start ? new Date(account.next_usage_period_start).toISOString() : undefined;
@@ -93,7 +93,7 @@ export const netlify: Connector = {
     ]);
 
     const fetchedAt = new Date().toISOString();
-    const exceeded = account.usages_exceeded?.length ? `Netlify reports exceeded: ${account.usages_exceeded.join(", ")}` : undefined;
+    const exceeded = account.usages_exceeded?.length ? `Netlify meldt overschreden: ${account.usages_exceeded.join(", ")}` : undefined;
     const periodStartIso = account.current_usage_period_start ? new Date(account.current_usage_period_start).toISOString() : undefined;
     const base = { service: "netlify", source: "api" as const, fetchedAt, resetsAt, periodStart: periodStartIso };
     const metrics: UsageMetric[] = [];
@@ -112,12 +112,12 @@ export const netlify: Connector = {
       unit: "credits",
       note:
         exceeded ??
-        `Estimate: ${deploys} deploys × ${CREDITS_PER_DEPLOY} + bandwidth × ${CREDITS_PER_GB}/GB. Excludes function and request usage.`,
+        `Schatting: ${deploys} deploys × ${CREDITS_PER_DEPLOY} + bandbreedte × ${CREDITS_PER_GB}/GB (functies en verzoeken niet meegeteld)`,
     });
     metrics.push(
-      { ...base, metric: "Production deploys", used: deploys, limit: null, unit: "deploys", note: "This billing period" },
-      { ...base, metric: "Bandwidth", used: Math.round((bandwidth.used / 1_000_000) * 10) / 10, limit: bandwidth.included ? bandwidth.included / 1_000_000 : null, unit: "MB" },
-      { ...base, metric: "Build minutes", used: builds.minutes.current, limit: builds.minutes.included_minutes, unit: "min" },
+      { ...base, metric: "Productie-deploys", used: deploys, limit: null, unit: "deploys", note: "deze factuurperiode" },
+      { ...base, metric: "Bandbreedte", used: Math.round((bandwidth.used / 1_000_000) * 10) / 10, limit: bandwidth.included ? bandwidth.included / 1_000_000 : null, unit: "MB" },
+      { ...base, metric: "Buildminuten", used: builds.minutes.current, limit: builds.minutes.included_minutes, unit: "min" },
     );
     return metrics;
   },

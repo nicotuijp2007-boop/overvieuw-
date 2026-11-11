@@ -14,7 +14,7 @@ function bad(message: string) {
 /** POST /api/manual: add or replace one manual value. */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object") return bad("Expected a JSON body.");
+  if (!body || typeof body !== "object") return bad("JSON verwacht.");
 
   const service = String(body.service ?? "");
   const metric = String(body.metric ?? "").trim();
@@ -23,12 +23,12 @@ export async function POST(req: Request) {
   const limit = body.limit === "" || body.limit == null ? null : Number(body.limit);
   const resetsAt = body.resetsAt ? new Date(String(body.resetsAt)) : undefined;
 
-  if (!services[service]) return bad(`Unknown service "${service}".`);
-  if (!metric || metric.length > 80) return bad("Metric name is required (max 80 characters).");
-  if (unit.length > 20) return bad("Unit is too long (max 20 characters).");
-  if (!Number.isFinite(used) || used < 0) return bad("Used must be a number ≥ 0.");
-  if (limit !== null && (!Number.isFinite(limit) || limit <= 0)) return bad("Limit must be a number > 0, or empty.");
-  if (resetsAt && Number.isNaN(resetsAt.getTime())) return bad("Reset date is not a valid date.");
+  if (!services[service]) return bad(`Onbekende dienst "${service}".`);
+  if (!metric || metric.length > 80) return bad("Naam is verplicht (max. 80 tekens).");
+  if (unit.length > 20) return bad("Eenheid is te lang (max. 20 tekens).");
+  if (!Number.isFinite(used) || used < 0) return bad("Gebruikt moet een getal ≥ 0 zijn.");
+  if (limit !== null && (!Number.isFinite(limit) || limit <= 0)) return bad("Limiet moet een getal > 0 zijn, of leeg.");
+  if (resetsAt && Number.isNaN(resetsAt.getTime())) return bad("Resetdatum is geen geldige datum.");
 
   await upsertManual({
     service,

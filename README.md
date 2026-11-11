@@ -34,10 +34,20 @@ scripts/statusline.mjs    Claude Code status line: records plan limits, triggers
 scripts/sync-claude.mjs   sends Claude Code usage + plan limits to the dashboard
 ```
 
-- Every page load or **Refresh** fetches all enabled connectors in parallel, on the server.
-  Tokens never reach the browser.
-- A connector that throws or takes longer than 8s shows an error on **its own card only**
-  (Netlify stops functions after 10s).
+- The dashboard (in Dutch) shows everything as **what's left** ("28% over"), most urgent first:
+  limits that will run out before their reset at the current pace come first (soonest first),
+  then the rest by % left. The headline at the top is the most urgent limit.
+- Each bar fills with what's left. The black marker shows how much **time** is left in the
+  period (tap or hover it); a bar shorter than the marker means you run out before the reset.
+  The period comes from the source, or from `period` in `limits.config.ts` (e.g. for manual values).
+- Status: OK (more than 30% left), Let op (10–30%), Kritiek (less than 10%), always with an
+  icon and a word. The status tiles at the top filter the list.
+- Every page load or **Vernieuwen** fetches all enabled connectors in parallel, on the server.
+  Tokens never reach the browser. Values are also stored as snapshots (at most every 10 minutes,
+  or when they change) in `usage_dashboard.snapshots`: used for the sparkline per limit and, when
+  a source fails, to keep showing its last known values with a small warning.
+- A connector that throws or takes longer than 8s only affects **its own card**
+  (Netlify stops functions after 10s); its last known values stay visible.
 - If an API doesn't return the plan cap, the limit comes from `limits.config.ts`.
 - Bar colors: green under 70%, yellow 70–90%, red above 90%.
 - Each metric has a badge for where its value came from: `api`, `local` (sent from your
@@ -221,8 +231,9 @@ Until then, the n8n card is hidden (`enabled: false` in `limits.config.ts`).
 
 ## Manual entries
 
-For values no API exposes (for example Supabase egress), use the **Manual entry** form at
-the bottom of the dashboard. They're stored in the `usage_dashboard.manual_entries` table.
+For values no API exposes (for example Supabase egress), use **Handmatige waarden** at
+the bottom of the dashboard. Use the metric name from `limits.config.ts` (the form suggests
+them) so the limit and period are applied; give a reset date to get the pace marker. They're stored in the `usage_dashboard.manual_entries` table.
 
 The service must be a key from `limits.config.ts`. Leave the limit empty to use the limit
 from config. Saving the same service + metric again replaces the old value. Manual values

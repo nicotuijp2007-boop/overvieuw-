@@ -56,6 +56,24 @@ create table if not exists usage_dashboard.claude_code_usage (
   last_at      timestamptz not null,
   primary key (machine, session_id, day)
 );
+alter table usage_dashboard.claude_code_usage add column if not exists synced_at timestamptz not null default now();
+
+-- One row per fetched value (at most every 10 minutes, or when the value changes).
+-- Used for "last known value" when a source fails, and for the sparklines.
+create table if not exists usage_dashboard.snapshots (
+  id            bigserial primary key,
+  service       text not null,
+  metric        text not null,
+  used          double precision not null,
+  "limit"       double precision,
+  unit          text not null default '',
+  source        text not null,
+  note          text,
+  fetched_at    timestamptz not null,
+  period_start  timestamptz,
+  resets_at     timestamptz
+);
+create index if not exists snapshots_metric_time on usage_dashboard.snapshots (service, metric, fetched_at desc);
 `;
 
 function connect(): postgres.Sql {

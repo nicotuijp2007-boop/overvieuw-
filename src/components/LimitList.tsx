@@ -1,88 +1,125 @@
-import type { Source } from "@/connectors/types";
-import { formatDateTime, formatDuration, formatNumber, timeAgo } from "@/lib/format";
+import Link from "next/link";
+import { formatDateTime, formatDuration, formatNumber, freshness, type Level } from "@/lib/format";
 import type { Headroom } from "@/lib/headroom";
-import { Meter, StatusBadge } from "./Status";
+import type { Point } from "@/lib/history";
+import { Sparkline } from "./Sparkline";
+import { Meter, STATUS, StatusBadge } from "./Status";
 
-const sourceLabel: Record<Source, string> = { api: "API", local: "Synced", manual: "Manual" };
+/** "28% over" for percentage limits; "165 credits over" otherwise. */
+export function leftText(h: Headroom): string {
+  if (h.metric.unit === "%") return `${h.leftPct}% over`;
+  return `${formatNumber(h.remaining)} ${h.metric.unit} over`;
+}
 
-/** "27% left" for percentage limits; "165 credits left" otherwise. */
-function leftText(h: Headroom): string {
-  if (h.metric.unit === "%") return `${Math.round(Math.max(100 - h.pct, 0))}% left`;
-  return `${formatNumber(h.remaining)} ${h.metric.unit} left`;
+/** The urgency line: when it runs out, or what's expected at the reset. */
+export function urgencyText(h: Headroom, now: number): { text: string; urgent: boolean } | null {
+  if (h.metric.used >= (h.metric.limit ?? Infinity)) return { text: "Limiet bereikt", urgent: true };
+  if (h.runsOutAt) return { text: `Op over ~${formatDuration(Date.parse(h.runsOutAt) - now)}, vóór de reset`, urgent: true };
+  if (h.projectedPct != null) {
+    return { text: `Bij dit tempo ~${Math.max(100 - Math.round(h.projectedPct), 0)}% over bij de reset`, urgent: false };
+  }
+  return null;
 }
 
 function usedText(h: Headroom): string {
   const m = h.metric;
-  if (m.unit === "%") return `${formatNumber(m.used)}% used`;
-  return `${formatNumber(m.used)} of ${formatNumber(m.limit ?? 0)} ${m.unit} used · ${Math.round(h.pct)}%`;
+  if (m.unit === "%") return `${h.usedPct}% gebruikt`;
+  return `${formatNumber(m.used)} van ${formatNumber(m.limit ?? 0)} ${m.unit} gebruikt`;
 }
 
-function paceText(h: Headroom, now: number): string | null {
-  if (h.runsOutAt) return `At this pace you run out in ${formatDuration(Date.parse(h.runsOutAt) - now)}, before the reset`;
-  if (h.projectedPct != null) return `On pace for about ${Math.round(Math.min(h.projectedPct, 999))}% by the reset`;
-  return null;
-}
-
-function LimitRow({ h, now }: { h: Headroom; now: number }) {
+function LimitRow({ h, now, spark, showLegend }: { h: Headroom; now: number; spark?: Point[]; showLegend: boolean }) {
   const m = h.metric;
-  const pace = paceText(h, now);
+  const urgency = urgencyText(h, now);
+  const resetIn = m.resetsAt ? `over ${formatDuration(Date.parse(m.resetsAt) - now)}` : undefined;
+  const from = m.periodStart ? Date.parse(m.periodStart) : now - 7 * 86_400_000;
   return (
     <li className="py-4 first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted">{h.serviceName}</span>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted">{h.serviceName}</div>
           <div className="font-medium">{m.metric}</div>
         </div>
-        <div className="text-right">
-          <div className="text-lg font-semibold">{leftText(h)}</div>
+        <div className="flex shrink-0 items-center gap-3">
+          {spark && <Sparkline points={spark} from={from} now={now} label={`${h.serviceName} ${m.metric}`} />}
+          <div className="text-right">
+            <div className="text-lg font-semibold leading-tight">{leftText(h)}</div>
+            {m.unit !== "%" && <div className="text-xs text-secondary">{h.leftPct}%</div>}
+          </div>
         </div>
       </div>
 
       <div className="mt-2">
-        <Meter pct={h.pct} level={h.level} elapsed={h.elapsed} label={`${h.serviceName} ${m.metric}`} />
+        <Meter leftPct={h.leftPct} level={h.level} elapsed={h.elapsed} resetText={resetIn} label={`${h.serviceName} ${m.metric}`} />
       </div>
+      {showLegend && (
+        <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted">
+          <span className="mt-0.5 inline-block h-3 w-0.5 shrink-0 rounded-full bg-text" aria-hidden />
+          <span>Het streepje toont hoeveel tijd er nog over is tot de reset. Is de balk korter, dan raak je op vóór de reset.</span>
+        </p>
+      )}
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-        <StatusBadge level={h.level} />
-        <span className="tabular-nums text-secondary">{usedText(h)}</span>
-        {m.resetsAt && <span title={formatDateTime(m.resetsAt)}>Resets in {formatDuration(Date.parse(m.resetsAt) - now)}</span>}
-        <span title={formatDateTime(m.fetchedAt)}>
-          {sourceLabel[m.source]}
-          {m.source !== "api" && ` ${timeAgo(m.fetchedAt, now)}`}
+      {urgency && (
+        <p className={`mt-1.5 text-sm ${urgency.urgent ? "font-medium text-text" : "text-secondary"}`}>{urgency.text}</p>
+      )}
+
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
+        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+          <StatusBadge level={h.level} />
+          <span className="text-secondary">{usedText(h)}</span>
+        </span>
+        <span className="whitespace-nowrap">
+          {m.resetsAt ? <span title={formatDateTime(m.resetsAt)}>Reset {resetIn}</span> : "Geen vaste reset"}
+        </span>
+        <span className="whitespace-nowrap" title={formatDateTime(m.fetchedAt)}>
+          {freshness(m.fetchedAt, m.source, now)}
+          {m.stale && " · niet ververst"}
         </span>
       </div>
-      {(pace || m.note) && (
-        <div className="mt-1 text-xs text-muted">
-          {pace && <span className={h.runsOutAt ? "font-medium text-secondary" : ""}>{pace}</span>}
-          {pace && m.note && " · "}
-          {m.note}
-        </div>
-      )}
+      {m.note && <p className="mt-0.5 text-xs text-muted">{m.note}</p>}
     </li>
   );
 }
 
-export function LimitList({ items, now }: { items: Headroom[]; now: number }) {
-  const hasPeriod = items.some((h) => h.elapsed != null);
+export function LimitList({
+  items,
+  now,
+  sparks,
+  filter,
+}: {
+  items: Headroom[];
+  now: number;
+  sparks: Map<string, Point[]>;
+  filter?: Level;
+}) {
+  const shown = filter ? items.filter((h) => h.level === filter) : items;
+  const legendAt = shown.findIndex((h) => h.elapsed != null);
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-semibold">All limits, fullest first</h2>
-        {hasPeriod && (
-          <span className="flex items-center gap-1.5 text-xs text-muted">
-            <span className="inline-block h-3 w-0.5 rounded-full bg-text" aria-hidden />
-            how far into the period you are
+        <h2 className="font-semibold">Alle limieten, meest urgent eerst</h2>
+        {filter && (
+          <span className="text-xs text-muted">
+            Alleen <span className="font-medium text-secondary">{STATUS[filter].label}</span> ·{" "}
+            <Link href="/" className="font-medium text-accent hover:underline">
+              toon alles
+            </Link>
           </span>
         )}
       </div>
-      {items.length ? (
+      {shown.length ? (
         <ul className="divide-y divide-grid">
-          {items.map((h) => (
-            <LimitRow key={`${h.metric.service}:${h.metric.metric}`} h={h} now={now} />
+          {shown.map((h, i) => (
+            <LimitRow
+              key={`${h.metric.service}:${h.metric.metric}`}
+              h={h}
+              now={now}
+              spark={sparks.get(`${h.metric.service}|${h.metric.metric}`)}
+              showLegend={i === legendAt}
+            />
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted">No limits to show yet.</p>
+        <p className="text-sm text-muted">{filter ? "Geen limieten met deze status." : "Nog geen limieten om te tonen."}</p>
       )}
     </section>
   );

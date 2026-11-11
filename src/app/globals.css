@@ -13,7 +13,7 @@
   --secondary: #52514e;   /* secondary ink */
   --muted: #6f6d68;       /* muted ink (labels, axis) */
   --grid: #e1e0d9;        /* hairlines */
-  --accent: #2a78d6;
+  --accent: #256abf;
   --ok: #0ca30c;
   --warn: #fab219;
   --danger: #d03b3b;
@@ -63,6 +63,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Equal-width digits everywhere, so numbers line up and don't jump when they change. */
+  font-variant-numeric: tabular-nums;
 }
 
 input, select, button {

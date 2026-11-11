@@ -25,11 +25,11 @@ async function call<T>(path: string, token: string, init?: RequestInit): Promise
     });
   } catch (err) {
     const cause = (err as { cause?: { code?: string; message?: string } }).cause;
-    throw new Error(`Could not reach api.supabase.com (${cause?.code ?? cause?.message ?? (err as Error).message})`);
+    throw new Error(`Kan api.supabase.com niet bereiken (${cause?.code ?? cause?.message ?? (err as Error).message})`);
   }
-  if (res.status === 401) throw new Error("Supabase rejected the token (HTTP 401). Check SUPABASE_TOKEN in .env.local.");
-  if (res.status === 403) throw new Error(`Supabase token lacks permission for ${path.split("?")[0]} (HTTP 403).`);
-  if (!res.ok) throw new Error(`Supabase API ${path.split("?")[0]} returned HTTP ${res.status}`);
+  if (res.status === 401) throw new Error("Supabase weigert het token (HTTP 401). Controleer SUPABASE_TOKEN.");
+  if (res.status === 403) throw new Error(`Het Supabase-token mist rechten voor ${path.split("?")[0]} (HTTP 403).`);
+  if (!res.ok) throw new Error(`Supabase API ${path.split("?")[0]} gaf HTTP ${res.status}`);
   return res.json() as Promise<T>;
 }
 
@@ -41,7 +41,7 @@ select
 `;
 
 const MB = 1_000_000;
-const formatMb = (bytes: number) => `${Math.round(bytes / MB).toLocaleString("en-US")} MB`;
+const formatMb = (bytes: number) => `${Math.round(bytes / MB).toLocaleString("nl-NL")} MB`;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const limitFor = (metric: string) => services.supabase?.limits[metric]?.limit ?? null;
 
@@ -57,7 +57,7 @@ async function projectMetrics(p: Project, token: string, label: (m: string) => s
 
   if (p.status !== "ACTIVE_HEALTHY") {
     // Paused projects can't run SQL. Show the status instead of failing the whole card.
-    return [{ ...base, metric: label("Status"), used: 0, limit: null, unit: "", note: `Project is ${p.status.toLowerCase()}` }];
+    return [{ ...base, metric: label("Status"), used: 0, limit: null, unit: "", note: `Project is ${p.status.toLowerCase()} (gepauzeerd of niet gezond)` }];
   }
 
   const ref = encodeURIComponent(p.ref);
@@ -81,26 +81,26 @@ async function projectMetrics(p: Project, token: string, label: (m: string) => s
   );
 
   return [
-    { ...base, metric: label("Database size"), used: round1(Number(r.db_bytes) / MB), limit: limitFor("Database size"), unit: "MB" },
-    { ...base, metric: label("Storage size"), used: round1(Number(r.storage_bytes) / MB), limit: limitFor("Storage size"), unit: "MB" },
+    { ...base, metric: label("Databasegrootte"), used: round1(Number(r.db_bytes) / MB), limit: limitFor("Databasegrootte"), unit: "MB" },
+    { ...base, metric: label("Bestandsopslag"), used: round1(Number(r.storage_bytes) / MB), limit: limitFor("Bestandsopslag"), unit: "MB" },
     {
       ...base,
-      metric: label("Monthly active users"),
+      metric: label("Actieve gebruikers (MAU)"),
       used: Number(r.active_users),
-      limit: limitFor("Monthly active users"),
+      limit: limitFor("Actieve gebruikers (MAU)"),
       unit: "MAU",
-      note: "Approx.: users who signed in during the last 30 days",
+      note: "benadering: ingelogd in de laatste 30 dagen",
     },
     {
       ...base,
-      metric: label("Disk used"),
+      metric: label("Schijfgebruik"),
       used: round1(disk.metrics.fs_used_bytes / MB),
       // Not a plan limit: Supabase grows the disk automatically. Shown as info, not as a bar.
       limit: null,
       unit: "MB",
-      note: `of ${formatMb(disk.metrics.fs_size_bytes)} disk; includes indexes, WAL and system files`,
+      note: `van ${formatMb(disk.metrics.fs_size_bytes)}; groeit automatisch mee`,
     },
-    { ...base, metric: label("API requests (7 days)"), used: requests, limit: null, unit: "requests" },
+    { ...base, metric: label("API-verzoeken (7 dagen)"), used: requests, limit: null, unit: "verzoeken" },
   ];
 }
 
@@ -108,12 +108,12 @@ export const supabase: Connector = {
   id: "supabase",
   async fetchUsage() {
     const token = process.env.SUPABASE_TOKEN;
-    if (!token) throw new Error("SUPABASE_TOKEN is not set (.env.local locally, or Netlify environment variables).");
+    if (!token) throw new Error("SUPABASE_TOKEN ontbreekt (in .env.local of de Netlify-omgevingsvariabelen).");
 
     let projects = await call<Project[]>("/projects", token);
     const only = process.env.SUPABASE_PROJECTS?.split(",").map((s) => s.trim()).filter(Boolean);
     if (only?.length) projects = projects.filter((p) => only.includes(p.ref) || only.includes(p.name));
-    if (projects.length === 0) throw new Error("No Supabase projects found for this token.");
+    if (projects.length === 0) throw new Error("Geen Supabase-projecten gevonden voor dit token.");
 
     // With one project, metric names match limits.config.ts directly; with several, the project name is appended.
     const results = await Promise.allSettled(
@@ -125,7 +125,7 @@ export const supabase: Connector = {
     // One failing project shouldn't hide the others; only fail the card if all failed.
     if (metrics.length === 0) throw new Error(failed.join("; "));
     if (failed.length) {
-      metrics.push({ service: "supabase", metric: "Errors", used: failed.length, limit: null, unit: "projects", source: "api", fetchedAt: new Date().toISOString(), note: failed.join("; ") });
+      metrics.push({ service: "supabase", metric: "Mislukte projecten", used: failed.length, limit: null, unit: "projecten", source: "api", fetchedAt: new Date().toISOString(), note: failed.join("; ") });
     }
     return metrics;
   },

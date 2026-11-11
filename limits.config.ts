@@ -14,6 +14,12 @@ export interface MetricLimit {
   unit: string;
   /** Where to find (or verify) this number. */
   where: string;
+  /**
+   * Length of the period this limit resets over. Used when a value (e.g. a manual entry)
+   * has a reset date but no start date, so the dashboard can still show how far into the
+   * period you are. "month" = one calendar month before the reset.
+   */
+  period?: "month" | "week" | "day";
 }
 
 export interface ServiceConfig {
@@ -49,8 +55,8 @@ export const services: Record<string, ServiceConfig> = {
     limits: {
       // Claude only reports these as percentages, so the limit is 100.
       // Run /usage in Claude Code or open claude.ai > Settings > Usage to see them.
-      "Session (5-hour)": { limit: 100, unit: "%", where: "claude.ai > Settings > Usage, or /usage in Claude Code" },
-      "Weekly (all models)": { limit: 100, unit: "%", where: "claude.ai > Settings > Usage, or /usage in Claude Code" },
+      "Sessie (5 uur)": { limit: 100, unit: "%", where: "claude.ai > Settings > Usage, or /usage in Claude Code" },
+      "Week (alle modellen)": { limit: 100, unit: "%", where: "claude.ai > Settings > Usage, or /usage in Claude Code", period: "week" },
     },
   },
 
@@ -58,10 +64,11 @@ export const services: Record<string, ServiceConfig> = {
     name: "Supabase (Free)",
     enabled: true,
     limits: {
-      "Database size": { limit: 500, unit: "MB", where: "supabase.com/pricing, Free plan > Database size" },
-      "Storage size": { limit: 1_024, unit: "MB", where: "supabase.com/pricing, Free plan > File storage" },
-      "Egress": { limit: 5, unit: "GB", where: "supabase.com/pricing, Free plan > Egress" },
-      "Monthly active users": { limit: 50_000, unit: "MAU", where: "supabase.com/pricing, Free plan > Monthly active users" },
+      "Databasegrootte": { limit: 500, unit: "MB", where: "supabase.com/pricing, Free plan > Database size" },
+      "Bestandsopslag": { limit: 1_024, unit: "MB", where: "supabase.com/pricing, Free plan > File storage" },
+      // Not available via the API: enter it under "Handmatige waarden", with the reset date of your billing cycle.
+      "Egress": { limit: 5, unit: "GB", where: "supabase.com/pricing, Free plan > Egress", period: "month" },
+      "Actieve gebruikers (MAU)": { limit: 50_000, unit: "MAU", where: "supabase.com/pricing, Free plan > Monthly active users" },
     },
   },
 
@@ -71,7 +78,7 @@ export const services: Record<string, ServiceConfig> = {
     limits: {
       // Free is a credit-based plan: deploys, bandwidth, compute etc. all draw from one credit pool.
       // The API also returns the included credits, which takes precedence over this value.
-      "Credits": { limit: 300, unit: "credits", where: "app.netlify.com > your team > Usage & billing" },
+      "Credits": { limit: 300, unit: "credits", where: "app.netlify.com > your team > Usage & billing", period: "month" },
     },
   },
 

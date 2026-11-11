@@ -25,6 +25,8 @@ export interface UsageMetric {
   fetchedAt: string;
   /** Optional one-line caveat shown under the metric, e.g. "estimate". */
   note?: string;
+  /** Set by the runner when the source failed and this is the last known value. */
+  stale?: boolean;
 }
 
 export interface Connector {

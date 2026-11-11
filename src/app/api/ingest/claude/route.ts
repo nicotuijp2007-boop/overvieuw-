@@ -74,7 +74,8 @@ export async function POST(req: Request) {
           project = excluded.project, models = excluded.models,
           input = excluded.input, output = excluded.output,
           cache_write = excluded.cache_write, cache_read = excluded.cache_read,
-          responses = excluded.responses, first_at = excluded.first_at, last_at = excluded.last_at
+          responses = excluded.responses, first_at = excluded.first_at, last_at = excluded.last_at,
+          synced_at = now()
       `;
     }
     if (rate) {

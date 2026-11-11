@@ -1,5 +1,5 @@
-import { latestRateLimits, totalsSince, type Totals } from "@/lib/claudeData";
-import { compactNumber, timeAgo } from "@/lib/format";
+import { latestRateLimits, totalsSince } from "@/lib/claudeData";
+import { compactNumber } from "@/lib/format";
 import type { Connector, UsageMetric } from "./types";
 
 /**
@@ -31,34 +31,40 @@ export const claudeCode: Connector = {
           periodStart: !expired && resets ? new Date(resets.getTime() - windowMs).toISOString() : undefined,
           source: "local",
           fetchedAt: recorded,
-          note: expired
-            ? "Window has reset since last recorded. Use Claude Code to update."
-            : `Recorded by the status line on ${limits.machine}`,
+          note: expired ? "Venster is gereset sinds de laatste meting; gebruik Claude Code om bij te werken" : undefined,
         });
       };
-      add("Session (5-hour)", limits.fiveHourPct, limits.fiveHourResetsAt, 5 * 3600_000);
-      add("Weekly (all models)", limits.sevenDayPct, limits.sevenDayResetsAt, 7 * 86_400_000);
+      add("Sessie (5 uur)", limits.fiveHourPct, limits.fiveHourResetsAt, 5 * 3600_000);
+      add("Week (alle modellen)", limits.sevenDayPct, limits.sevenDayResetsAt, 7 * 86_400_000);
     }
 
     if (week.responses === 0 && !limits) {
-      throw new Error("No Claude data received yet. Run `npm run sync` on a computer where you use Claude Code (see README).");
+      throw new Error("Nog geen Claude-gegevens ontvangen. Draai `npm run sync` op een computer waar je Claude Code gebruikt (zie README).");
     }
 
-    const synced = week.lastAt ? `last activity ${timeAgo(week.lastAt.toISOString(), now)}` : "no activity";
-    const note = (t: Totals) =>
-      `${compactNumber(t.input + t.output)} in/out, ${compactNumber(t.cacheWrite + t.cacheRead)} cache, ${t.responses} responses`;
-    const fetchedAt = new Date().toISOString();
+    // Input/output is what you actually typed and got back; cache reads dominate totals,
+    // so they're a secondary line.
+    const fetchedAt = (week.syncedAt ?? new Date()).toISOString();
     metrics.push(
-      { service: "claude", metric: "Tokens today", used: today.total, limit: null, unit: "tokens", source: "local", fetchedAt, note: note(today) },
       {
         service: "claude",
-        metric: "Tokens (7 days)",
-        used: week.total,
+        metric: "Tokens vandaag",
+        used: today.input + today.output,
         limit: null,
-        unit: "tokens",
+        unit: "in/uit",
         source: "local",
         fetchedAt,
-        note: `${note(week)}; ${week.machines} computer${week.machines === 1 ? "" : "s"}, ${synced}`,
+        note: `+ ${compactNumber(today.cacheWrite + today.cacheRead)} cache`,
+      },
+      {
+        service: "claude",
+        metric: "Tokens (7 dagen)",
+        used: week.input + week.output,
+        limit: null,
+        unit: "in/uit",
+        source: "local",
+        fetchedAt,
+        note: `+ ${compactNumber(week.cacheWrite + week.cacheRead)} cache`,
       },
     );
     return metrics;

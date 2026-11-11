@@ -28,9 +28,9 @@ const totalsHeaders = (
   <>
     <th className={`${th} text-right`}>Input</th>
     <th className={`${th} text-right`}>Output</th>
-    <th className={`${th} text-right`}>Cache write</th>
-    <th className={`${th} text-right`}>Cache read</th>
-    <th className={`${th} text-right`}>Total</th>
+    <th className={`${th} text-right`}>Cache schrijven</th>
+    <th className={`${th} text-right`}>Cache lezen</th>
+    <th className={`${th} text-right`}>Totaal</th>
   </>
 );
 
@@ -47,24 +47,25 @@ export default async function ClaudeCodePage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <Link href="/" className="text-sm text-accent hover:underline">← Dashboard</Link>
-      <h1 className="mt-2 text-2xl font-semibold">Claude Code token usage</h1>
+      <h1 className="mt-2 text-2xl font-semibold">Claude Code-tokengebruik</h1>
       <p className="mt-1 text-sm text-muted">
-        Sent from your computers by <code>scripts/sync-claude.mjs</code>, so it's kept even after Claude Code deletes
-        old logs. Tokens are not the same as your Pro plan limits, which are measured in % on the dashboard.
+        Verstuurd vanaf je computers door <code>scripts/sync-claude.mjs</code>, dus het blijft bewaard ook nadat Claude
+        Code oude logs verwijdert. Tokens zijn niet hetzelfde als je Pro-limieten; die staan in % op het dashboard.
+        Cache-tokens zijn hergebruikte context en tellen veel minder zwaar dan input/output.
       </p>
       {error && (
         <p className="mt-4 rounded-md bg-danger-bg px-3 py-2 text-sm text-danger-text" role="alert">{error}</p>
       )}
 
-      <h2 className="mt-8 mb-2 font-semibold">Per day (last 30 days with activity)</h2>
+      <h2 className="mt-8 mb-2 font-semibold">Per dag (laatste 30 dagen met activiteit)</h2>
       <div className="overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="w-full text-sm">
           <thead className="border-b border-border">
             <tr>
-              <th className={th}>Day</th>
+              <th className={th}>Dag</th>
               {totalsHeaders}
-              <th className={`${th} text-right`}>Responses</th>
-              <th className={th}>Models</th>
+              <th className={`${th} text-right`}>Antwoorden</th>
+              <th className={th}>Modellen</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -77,22 +78,22 @@ export default async function ClaudeCodePage() {
               </tr>
             ))}
             {days.length === 0 && (
-              <tr><td colSpan={8} className={`${td} text-muted`}>No usage received yet.</td></tr>
+              <tr><td colSpan={8} className={`${td} text-muted`}>Nog geen gebruik ontvangen.</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      <h2 className="mt-8 mb-2 font-semibold">Recent sessions</h2>
+      <h2 className="mt-8 mb-2 font-semibold">Recente sessies</h2>
       <div className="overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="w-full text-sm">
           <thead className="border-b border-border">
             <tr>
-              <th className={th}>Last activity</th>
+              <th className={th}>Laatste activiteit</th>
               <th className={th}>Computer</th>
               <th className={th}>Project</th>
               {totalsHeaders}
-              <th className={th}>Models</th>
+              <th className={th}>Modellen</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -106,7 +107,7 @@ export default async function ClaudeCodePage() {
               </tr>
             ))}
             {sessions.length === 0 && (
-              <tr><td colSpan={9} className={`${td} text-muted`}>No sessions received yet.</td></tr>
+              <tr><td colSpan={9} className={`${td} text-muted`}>Nog geen sessies ontvangen.</td></tr>
             )}
           </tbody>
         </table>
