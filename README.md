@@ -4,8 +4,8 @@ A personal dashboard that shows, in one place, how close you are to the limits o
 services you use (Claude, Supabase, Netlify, n8n, …). It runs locally on your own machine
 because one data source is your local Claude Code logs.
 
-> **Status:** dashboard, manual entries, Claude Code and Netlify connectors are done.
-> Supabase and n8n connectors come next.
+> **Status:** dashboard, manual entries, Claude Code, Netlify and Supabase connectors are done.
+> The n8n connector comes next.
 
 ## Setup
 
@@ -117,6 +117,30 @@ uses but that aren't in Netlify's public API reference, so they could change wit
 If the card errors after a Netlify update, that's the likely cause. Check the credits value
 against your team's **Usage** page now and then.
 
+## Supabase
+
+Set `SUPABASE_TOKEN` in `.env.local`. Create it under supabase.com/dashboard → avatar →
+Account preferences → Access Tokens. Use a **scoped** token with **read** access to
+projects, usage/analytics, database and disk config, and nothing else.
+`SUPABASE_PROJECTS` (comma-separated refs or names) limits the card to some projects.
+
+Per project the card shows:
+
+| Metric | How |
+|---|---|
+| Database size | `pg_database_size()` via the read-only SQL endpoint |
+| Storage size | sum of file sizes in `storage.objects` |
+| Monthly active users | users who signed in during the last 30 days (approximation of billed MAU) |
+| Disk used | disk utilization endpoint (includes indexes, WAL and system files) |
+| API requests (7 days) | analytics usage endpoint, for context (no limit on Free) |
+
+SQL runs through `/database/query/read-only`, which uses a read-only transaction, so the
+dashboard can't change your data. **Egress isn't available via the API**: add it as a
+manual entry ("Egress", in GB) from your organization's Usage page.
+
+With several projects, metric names get the project name appended (e.g.
+`Database size · my-app`) and the Free plan limits from `limits.config.ts` apply to each.
+
 ## Manual entries
 
 For values no API exposes (for example Claude Pro's session and weekly usage), use the
@@ -206,6 +230,6 @@ Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
 
 1. ~~Scaffold, config, connector interface, mock connector~~
 2. ~~Dashboard UI with mock data and manual entries~~
-3. Real connectors: ~~Claude Code local logs~~ → ~~Netlify~~ → Supabase → n8n
+3. Real connectors: ~~Claude Code local logs~~ → ~~Netlify~~ → ~~Supabase~~ → n8n
 4. SQLite history of every fetch and 30-day trend charts
 5. Later: scheduled fetching and alerts above 90%
