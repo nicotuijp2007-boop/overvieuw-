@@ -19,6 +19,9 @@
   --danger: #d03b3b;
   --danger-bg: #fbeaea;
   --danger-text: #a52424;
+  /* OK bars are muted (gray-green on a neutral track) so only Let op / Kritiek draw the eye. */
+  --ok-muted: color-mix(in oklab, var(--ok) 42%, #a3a29b);
+  --ok-track: #e9e8e2;
   --input-bg: #ffffff;
 }
 
@@ -38,6 +41,8 @@
     --danger: #d03b3b;
     --danger-bg: #3a1c1e;
     --danger-text: #ffa3a3;
+    --ok-muted: color-mix(in oklab, var(--ok) 42%, #5c5b56);
+    --ok-track: #2a2a28;
     --input-bg: #0d0d0d;
   }
 }
@@ -56,6 +61,8 @@
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
   --color-danger-text: var(--danger-text);
+  --color-ok-muted: var(--ok-muted);
+  --color-ok-track: var(--ok-track);
   --color-input-bg: var(--input-bg);
 }
 

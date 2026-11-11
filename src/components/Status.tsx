@@ -2,7 +2,8 @@ import type { Level } from "@/lib/format";
 import { Tip } from "./Tip";
 
 export const STATUS: Record<Level, { label: string; rule: string; fill: string; track: string }> = {
-  ok: { label: "OK", rule: "meer dan 30% over", fill: "bg-ok", track: "bg-ok/15" },
+  // OK is deliberately muted: healthy limits shouldn't be the loudest thing on the page.
+  ok: { label: "OK", rule: "meer dan 30% over", fill: "bg-ok-muted", track: "bg-ok-track" },
   warn: { label: "Let op", rule: "10–30% over", fill: "bg-warn", track: "bg-warn/20" },
   danger: { label: "Kritiek", rule: "minder dan 10% over", fill: "bg-danger", track: "bg-danger/15" },
 };

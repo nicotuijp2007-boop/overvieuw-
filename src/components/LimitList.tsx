@@ -3,7 +3,7 @@ import { formatDateTime, formatDuration, formatNumber, freshness, type Level } f
 import type { Headroom } from "@/lib/headroom";
 import type { Point } from "@/lib/history";
 import { Sparkline } from "./Sparkline";
-import { Meter, STATUS, StatusBadge } from "./Status";
+import { Meter, STATUS, StatusBadge, StatusIcon } from "./Status";
 
 /** "28% over" for percentage limits; "165 credits over" otherwise. */
 export function leftText(h: Headroom): string {
@@ -92,7 +92,20 @@ export function LimitList({
   filter?: Level;
 }) {
   const shown = filter ? items.filter((h) => h.level === filter) : items;
-  const legendAt = shown.findIndex((h) => h.elapsed != null);
+  // Limits without a reset that are well within margin fold into one line (not while filtering).
+  const isAmple = (h: Headroom) => !filter && !h.metric.resetsAt && h.level === "ok" && !h.runsOutAt && h.leftPct >= 50;
+  const main = shown.filter((h) => !isAmple(h));
+  const ample = shown.filter(isAmple);
+  const legendAt = main.findIndex((h) => h.elapsed != null);
+  const row = (h: Headroom, i: number) => (
+    <LimitRow
+      key={`${h.metric.service}:${h.metric.metric}`}
+      h={h}
+      now={now}
+      spark={sparks.get(`${h.metric.service}|${h.metric.metric}`)}
+      showLegend={i === legendAt}
+    />
+  );
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -108,15 +121,26 @@ export function LimitList({
       </div>
       {shown.length ? (
         <ul className="divide-y divide-grid">
-          {shown.map((h, i) => (
-            <LimitRow
-              key={`${h.metric.service}:${h.metric.metric}`}
-              h={h}
-              now={now}
-              spark={sparks.get(`${h.metric.service}|${h.metric.metric}`)}
-              showLegend={i === legendAt}
-            />
-          ))}
+          {main.map(row)}
+          {ample.length > 0 && (
+            <li className={main.length ? "pt-4" : ""}>
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <StatusIcon level="ok" className="h-4 w-4" />
+                    <span className="font-medium">
+                      {ample.length} {ample.length === 1 ? "limiet" : "limieten"} ruim binnen marge
+                    </span>
+                    <span className="truncate text-sm text-muted">
+                      {ample.map((h) => h.metric.metric).join(", ")}
+                    </span>
+                  </span>
+                  <span aria-hidden className="text-muted transition-transform group-open:rotate-180">▾</span>
+                </summary>
+                <ul className="mt-2 divide-y divide-grid border-t border-grid pt-4">{ample.map((h) => row(h, -1))}</ul>
+              </details>
+            </li>
+          )}
         </ul>
       ) : (
         <p className="text-sm text-muted">{filter ? "Geen limieten met deze status." : "Nog geen limieten om te tonen."}</p>
