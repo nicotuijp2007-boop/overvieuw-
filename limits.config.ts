@@ -29,7 +29,7 @@ export const services: Record<string, ServiceConfig> = {
   // Set enabled: false once your real connectors work.
   mock: {
     name: "Mock service",
-    enabled: true,
+    enabled: false,
     limits: {
       "Requests": { limit: 10_000, unit: "requests", where: "Made up, for the demo." },
       "Storage": { limit: 1_000, unit: "MB", where: "Made up, for the demo." },
@@ -39,7 +39,7 @@ export const services: Record<string, ServiceConfig> = {
   // Always throws, to show that one broken connector only breaks its own card.
   "mock-broken": {
     name: "Broken mock",
-    enabled: true,
+    enabled: false,
     limits: {},
   },
 
@@ -75,10 +75,11 @@ export const services: Record<string, ServiceConfig> = {
     },
   },
 
+  // Not in use yet, and there's no connector yet: see "n8n (planned)" in the README.
   n8n: {
     name: "n8n (self-hosted)",
-    enabled: true,
-    // Self-hosted Community Edition has no execution quota. Executions are counted for info only.
+    enabled: false,
+    // Self-hosted Community Edition has no execution quota. Executions will be counted for info only.
     limits: {},
   },
 };

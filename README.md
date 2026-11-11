@@ -5,7 +5,7 @@ services you use (Claude, Supabase, Netlify, n8n, …). It runs locally on your 
 because one data source is your local Claude Code logs.
 
 > **Status:** dashboard, manual entries, Claude Code, Netlify and Supabase connectors are done.
-> The n8n connector comes next.
+> n8n is planned for when you start using it; SQLite history and trend charts are next.
 
 ## Setup
 
@@ -23,9 +23,9 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. Out of the box you'll see two demo cards (`mock` and
-`mock-broken`) plus empty cards for the real services. Turn the demo cards off by setting
-`enabled: false` for them in `limits.config.ts`.
+Open http://localhost:3000. There are two demo cards (`mock`, and `mock-broken`, which
+shows how an error looks). They're turned off; set `enabled: true` for them in
+`limits.config.ts` to see them.
 
 ## How it works
 
@@ -141,6 +141,18 @@ manual entry ("Egress", in GB) from your organization's Usage page.
 With several projects, metric names get the project name appended (e.g.
 `Database size · my-app`) and the Free plan limits from `limits.config.ts` apply to each.
 
+## n8n (planned)
+
+Not built yet, because there's no instance to test against. When you set up n8n:
+
+- **Self-hosted:** the connector will count production executions per month via
+  `GET /api/v1/executions` (header `X-N8N-API-KEY`, created in your instance under
+  Settings → n8n API). Community Edition has no execution quota, so it's shown for info.
+- **n8n Cloud:** the quota isn't available via the API. Executions can still be counted
+  via the API, with your plan's cap in `limits.config.ts`.
+
+Until then, the n8n card is hidden (`enabled: false` in `limits.config.ts`).
+
 ## Manual entries
 
 For values no API exposes (for example Claude Pro's session and weekly usage), use the
@@ -230,6 +242,6 @@ Put all tokens in `.env.local`. It is gitignored, and the app never logs tokens.
 
 1. ~~Scaffold, config, connector interface, mock connector~~
 2. ~~Dashboard UI with mock data and manual entries~~
-3. Real connectors: ~~Claude Code local logs~~ → ~~Netlify~~ → ~~Supabase~~ → n8n
+3. Real connectors: ~~Claude Code local logs~~ → ~~Netlify~~ → ~~Supabase~~ → n8n (when you start using it)
 4. SQLite history of every fetch and 30-day trend charts
 5. Later: scheduled fetching and alerts above 90%
