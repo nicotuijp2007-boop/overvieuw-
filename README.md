@@ -6,7 +6,8 @@ password, so you can open it from any computer or phone. Data that only exists o
 computers (Claude Code logs and plan limits) is sent to it by a small sync script.
 
 > **Status:** dashboard, manual entries, Claude, Netlify and Supabase connectors, hosting
-> on Netlify, an iPhone/Mac widget and the dashboard as a home-screen app. n8n is planned for when you start using it; history and trend charts are next.
+> on Netlify, an iPhone/Mac widget, the dashboard as a home-screen app, and Claude plan limits
+> that stay current without Claude Code open (background job). n8n is planned for when you start using it; history and trend charts are next.
 
 ## How it works
 
@@ -34,8 +35,12 @@ src/app/api/ingest/claude receives data from the sync script
 src/app/api/widget        read-only JSON for the widget (WIDGET_TOKEN); docs/prompts/widget-api-contract.md
 widgets/scriptable        the iPhone/Mac widget (Scriptable), with Node tests: npm run test:widget
 scripts/statusline.mjs    Claude Code status line: records plan limits, triggers the sync
-scripts/sync-claude.mjs   sends Claude Code usage + plan limits to the dashboard
+scripts/sync-claude.mjs   sends Claude Code usage + plan limits to the dashboard (--usage: fresh limits via /usage)
+scripts/background-sync.mjs  background job (macOS launchd, Linux cron) that runs the sync every 5 minutes
+scripts/lib/plan-usage.mjs   reads plan limits with Claude Code's own /usage, headless: `claude -p /usage`
 ```
+
+Tests for the sync scripts (fake `claude`, fake dashboard): `node --test "scripts/**/*.test.mjs"`.
 
 - The dashboard (in Dutch) shows everything as **what's left** ("28% over"), most urgent first:
   limits that will run out before their reset at the current pace come first (soonest first),
@@ -153,6 +158,13 @@ Or do the same by hand:
 3. Add the status line to `~/.claude/settings.json` (see **Claude (Pro)** below).
 4. Test it once: `npm run sync`. It should print `Sent … session-days …`.
 
+Then, so your plan limits also update when Claude Code isn't open (recommended, see
+**Zonder Claude Code open** under **Claude (Pro)**):
+
+```bash
+node scripts/background-sync.mjs install
+```
+
 ### Running locally instead
 
 `npm install`, put the dashboard variables in `.env.local`, then `npm run dev` and open
@@ -238,7 +250,52 @@ Doe dit als je telefoon kwijt is of als de token ergens terecht is gekomen waar 
 ## Claude (Pro)
 
 There's no API for Pro plan usage, so the Claude card is filled from your computers by
-`scripts/sync-claude.mjs`. It sends two things:
+`scripts/sync-claude.mjs`. It sends two things: your plan limits (from the status line, or
+from the background job below) and your Claude Code token usage.
+
+### Zonder Claude Code open: de achtergrondtaak
+
+De status line (hieronder) werkt alleen terwijl Claude Code in je terminal draait. Met de
+achtergrondtaak vraagt je Mac zelf elke 5 minuten je sessie- en weekverbruik op, ook als
+Claude Code dicht is. Gebruik op claude.ai, in de Claude-app en in Claude Code in de cloud
+telt voor dezelfde limieten, dus dat zie je dan ook terug. Eenmalig, in de map van deze repo:
+
+```bash
+node scripts/background-sync.mjs install
+```
+
+- De taak draait `claude -p "/usage"`: het `/usage`-commando van Claude Code zelf, zonder
+  terminal. Dat leest je percentages bij claude.ai en doet geen modelverzoek, dus het kost
+  **geen** verbruik. Daarna stuurt `sync-claude.mjs` ze samen met je tokengebruik naar het
+  dashboard.
+- Nodig: `.env.local` uit stap 4 van Setup, en Claude Code ingelogd met je claude.ai-account
+  (`claude auth login`, of `/login` in Claude Code). Een token van `claude setup-token` werkt
+  hier niet: dat mag alleen modelverzoeken doen, niet je verbruik lezen.
+- `install` test eerst één keer (je ziet je sessie- en weekpercentage) en installeert pas als
+  dat lukt. Het kopieert de scripts en je instellingen naar
+  `~/Library/Application Support/usage-dashboard-sync`, omdat macOS achtergrondtaken niet laat
+  lezen in Documenten, Bureaublad of iCloud Drive, en zet een LaunchAgent aan. macOS meldt dan
+  een nieuw achtergrondonderdeel (`node`); laat dat aan staan (Systeeminstellingen → Algemeen →
+  Inloggen en extensies).
+- Hoe het gaat: `node scripts/background-sync.mjs status` (laatste run, percentages, fout).
+  Andere frequentie: `install --every 10` (2 tot 60 minuten). Stoppen en alles opruimen:
+  `node scripts/background-sync.mjs uninstall`.
+- Scripts bijgewerkt (`git pull`)? Draai `install` opnieuw: de taak gebruikt de kopie.
+- De taak draait alleen als je Mac wakker is. Vergrendeld is prima; in slaap of met de klep
+  dicht niet. Het dashboard en de widget tonen dan de laatste meting, met de tijd erbij.
+  Moet het altijd doorlopen, zet dan dezelfde taak op een computer die altijd aan staat, zoals
+  een Mac mini, of een Linux-machine waar je één keer `claude auth login` doet: daar geeft
+  `install` een regel voor `crontab -e`.
+
+Waarom haalt Netlify het niet zelf op? Je planverbruik is alleen op te vragen met je
+claude.ai-login. Volgens [Anthropic](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use)
+is die login bedoeld voor Claude Code en Anthropic's eigen apps, en mogen claude.ai-inloggegevens
+niet buiten hun eigen inlogflow worden opgeslagen of doorgegeven; Anthropic kan daar zonder
+waarschuwing tegen optreden. Je token uit Claude Code halen en op Netlify zetten doen we daarom
+niet. Nu vraagt Claude Code het zelf op, op je eigen computer, en gaan alleen de percentages
+naar het dashboard.
+
+### Status line and token usage
 
 **1. Session (5-hour) and weekly limits, via the status line.** Claude Code passes these (as
 a %, with reset times) to your [status line](https://code.claude.com/docs/en/statusline)
@@ -274,9 +331,13 @@ totals per session per day. Click **Details** on the card for per-day and per-se
 - Logs somewhere else? Set `CLAUDE_CONFIG_DIR` in that computer's `.env.local`.
 
 Limitations:
-- Plan limits only update while you use Claude Code. Usage on claude.ai counts toward the
-  same limits but won't show until Claude Code's next response.
-- Claude Code only sends limits after the first response in a session.
+- Without the background job, plan limits only update while you use Claude Code in a terminal,
+  and usage on claude.ai shows only after Claude Code's next response. With it, they update
+  every 5 minutes while the computer is awake.
+- The status line only gets limits after the first response in a session.
+- Token usage covers Claude Code on your own computers. Cloud sessions (claude.ai/code, the
+  Claude app) count toward your plan limits, but their logs stay in the cloud, so they're not
+  in the token totals.
 - Once a window's reset time passes, the card shows 0% with a note until a new value comes in.
 - With several computers, the most recently recorded limits are shown, and token usage
   is added up across all of them.

@@ -35,7 +35,9 @@ async function parseFile(file, sinceMs, seen, out) {
     }
     const msg = d?.message;
     const u = msg?.usage;
-    if (d?.type !== "assistant" || !u) continue;
+    // "<synthetic>" messages (errors, local command output such as /usage) are written by
+    // Claude Code itself, not returned by the API, so they aren't responses.
+    if (d?.type !== "assistant" || !u || msg.model === "<synthetic>") continue;
     const ts = Date.parse(d.timestamp);
     if (Number.isNaN(ts) || ts < sinceMs) continue;
     const key = msg.id || d.requestId ? `${msg.id}:${d.requestId}` : `${file}:${line}`;

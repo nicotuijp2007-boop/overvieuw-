@@ -96,4 +96,7 @@ if (res.status !== 0) {
 }
 console.log(`
 ✓ Klaar. Start Claude Code (opnieuw) en stuur één bericht: daarna staan je sessie- en weekpercentages
-  op het dashboard. Daarna synchroniseert het vanzelf, hooguit elke 5 minuten zolang je Claude Code gebruikt.`);
+  op het dashboard. Daarna synchroniseert het vanzelf, hooguit elke 5 minuten zolang je Claude Code gebruikt.
+
+  Ook bijwerken als Claude Code dicht is (elke 5 minuten, kost geen verbruik)? Draai daarna:
+    node scripts/background-sync.mjs install`);
