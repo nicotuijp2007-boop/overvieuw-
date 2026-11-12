@@ -11,7 +11,7 @@ computers (Claude Code logs and plan limits) is sent to it by a small sync scrip
 ## How it works
 
 ```
-                 ┌─────────── Netlify (password protected) ───────────┐
+                 ┌─────────── Netlify (login via Supabase) ───────────┐
 browser ───────▶ │ dashboard ──▶ Netlify API, Supabase Management API │
                  │     │                                               │
 your computers ─▶│ /api/ingest/claude (INGEST_SECRET)                  │
@@ -27,7 +27,7 @@ limits.config.ts          your plan caps, one entry per service (edit by hand)
 src/connectors/           one file per service + index.ts (the list) + types.ts
 src/lib/runner.ts         runs all connectors in parallel, merges manual values, fills limits
 src/lib/db.ts             Postgres connection; creates the usage_dashboard tables on first use
-src/proxy.ts              password prompt in front of everything except /api/ingest/, /api/widget, icons
+src/proxy.ts              login check (session cookie, optional Basic auth) except /login, /api/ingest/, /api/widget, icons
 src/lib/present.ts        the Dutch texts and the order of the limits, shared by the page and /api/widget
 src/app/page.tsx          the dashboard
 src/app/api/ingest/claude receives data from the sync script
@@ -76,8 +76,8 @@ Pick two new random values:
 node -e "console.log(crypto.randomUUID()+crypto.randomUUID())"
 ```
 
-Use one output as `INGEST_SECRET` (shared with your computers). Choose a
-`DASHBOARD_PASSWORD` you can type on your phone.
+Use one output as `INGEST_SECRET` (shared with your computers) and the other as
+`SESSION_SECRET` (signs the login cookie). Then set up login, see **Inloggen** below.
 
 ### 3. Netlify site
 
@@ -92,14 +92,38 @@ Use one output as `INGEST_SECRET` (shared with your computers). Choose a
    | Variable | Required |
    |---|---|
    | `DATABASE_URL` | yes |
-   | `DASHBOARD_PASSWORD` | yes (the site refuses to load without it) |
+   | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `DASHBOARD_ALLOWED_EMAILS`, `SESSION_SECRET` | yes, for login (see **Inloggen**) |
+   | `DASHBOARD_PASSWORD` | optional fallback (Basic auth, e.g. for curl) |
    | `INGEST_SECRET` | yes, for Claude data |
    | `DASHBOARD_TIMEZONE` | recommended, e.g. `Europe/Amsterdam` (Netlify runs in UTC) |
    | `NETLIFY_TOKEN` | for the Netlify card |
    | `SUPABASE_TOKEN` | for the Supabase card |
    | `WIDGET_TOKEN` | for the widget (see **Widget op iPhone en Mac**) |
 
-4. Deploy. Open the site; the browser asks for a username (anything) and the password.
+4. Deploy. Open the site and log in with your Supabase account.
+
+### Inloggen (Supabase)
+
+Het dashboard gebruikt Supabase Auth alleen om je e-mail en wachtwoord te controleren. Daarna
+zet het zelf een beveiligde cookie (httpOnly, 30 dagen geldig), zodat je ook in de app op je
+beginscherm ingelogd blijft.
+
+1. **Account aanmaken:** Supabase → je project → **Authentication → Users → Add user →
+   Create new user**. Vul je e-mail en een wachtwoord in en vink **Auto Confirm User** aan.
+2. **Sleutel kopiëren:** Supabase → **Project Settings → API Keys** → de *publishable* (anon)
+   key. Die is openbaar, geen geheim.
+3. **In Netlify (Environment variables):**
+   - `SUPABASE_URL` = `https://<project-ref>.supabase.co`
+   - `SUPABASE_PUBLISHABLE_KEY` = de sleutel uit stap 2
+   - `DASHBOARD_ALLOWED_EMAILS` = jouw e-mail (meerdere: met komma's). **Alleen deze
+     adressen komen erin**: andere gebruikers van hetzelfde Supabase-project (bijv. van een
+     andere app) worden geweigerd, ook met een juist wachtwoord.
+   - `SESSION_SECRET` = een lange willekeurige waarde (zie stap 2 van Setup)
+4. Deployen. Daarna opent het dashboard met een inlogpagina; **Uitloggen** staat rechtsboven.
+
+Wachtwoord vergeten? Stel een nieuw in via Supabase → Authentication → Users. Iedereen overal
+uitloggen: verander `SESSION_SECRET` (en deploy). Iemand de toegang ontnemen: haal het adres uit
+`DASHBOARD_ALLOWED_EMAILS`; een bestaande cookie werkt dan direct niet meer.
 
 Page loads also use a little of your Netlify credits (function compute and requests),
 which the Netlify card's estimate doesn't include.
@@ -200,11 +224,7 @@ wissen**. Laat het tokenveld leeg om de huidige token te houden.
 1. Open het dashboard in **Safari** op je iPhone.
 2. Tik op de deelknop (vierkant met pijl) → **Zet op beginscherm** → **Voeg toe**. Het icoon
    heet "Limieten".
-3. Open het via het icoon en log in met je dashboardwachtwoord (gebruikersnaam maakt niet uit).
-
-Let op: in een app op het beginscherm toont iOS de inlogvraag van de browser (Basic auth) niet
-altijd betrouwbaar en onthoudt hij hem niet altijd. Een eigen login (met Supabase) volgt later.
-Werkt het icoon niet, open het dashboard dan gewoon in Safari.
+3. Open het via het icoon en log in met je Supabase-account. Je blijft 30 dagen ingelogd.
 
 ### Token vervangen (roteren)
 
@@ -338,7 +358,8 @@ never logs tokens. On Netlify, secrets go in the site's environment variables.
 | `NETLIFY_TOKEN` | app.netlify.com → User settings → Applications → Personal access tokens |
 | `SUPABASE_TOKEN` | supabase.com/dashboard → avatar → Account preferences → Access Tokens (scoped, read-only) |
 | `DATABASE_URL` | Supabase → Connect → Transaction pooler |
-| `DASHBOARD_PASSWORD`, `INGEST_SECRET` | you choose them (see Setup) |
+| `SESSION_SECRET`, `INGEST_SECRET`, `DASHBOARD_PASSWORD` (optional) | you choose them (see Setup) |
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `DASHBOARD_ALLOWED_EMAILS` | see **Inloggen** |
 | `WIDGET_TOKEN` | you make it: `openssl rand -hex 32`, or a strong password from the iPhone Passwords app |
 | `N8N_API_KEY` (planned) | your n8n instance → Settings → n8n API |
 

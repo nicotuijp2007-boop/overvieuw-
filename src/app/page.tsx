@@ -8,6 +8,8 @@ import { formatDateTime, type Level } from "@/lib/format";
 import { series } from "@/lib/history";
 import { limitsView } from "@/lib/present";
 import { fetchDashboard } from "@/lib/runner";
+import { SESSION_COOKIE, verifySession } from "@/lib/session";
+import { cookies } from "next/headers";
 
 // Always fetch fresh data on load / refresh.
 export const dynamic = "force-dynamic";
@@ -18,7 +20,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const { status } = await searchParams;
   const filter = LEVELS.find((l) => l === status);
 
-  const { results, manual } = await fetchDashboard();
+  const [{ results, manual }, signedInAs] = await Promise.all([
+    fetchDashboard(),
+    cookies().then((c) => verifySession(c.get(SESSION_COOKIE)?.value)),
+  ]);
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
@@ -44,7 +49,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           <h1 className="text-3xl font-semibold tracking-tight">Gebruikslimieten</h1>
           <p className="text-sm text-muted">Opgehaald {formatDateTime(nowIso)}</p>
         </div>
-        <RefreshButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <RefreshButton />
+          {signedInAs && (
+            <form method="post" action="/logout">
+              <button
+                type="submit"
+                title={`Ingelogd als ${signedInAs}`}
+                className="glass rounded-full px-4 py-1.5 text-sm font-medium text-secondary hover:border-accent"
+              >
+                Uitloggen
+              </button>
+            </form>
+          )}
+        </div>
       </header>
 
       <div className="space-y-6">
