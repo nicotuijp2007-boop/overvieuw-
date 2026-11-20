@@ -4,12 +4,17 @@
  *  - Claude Code token usage from local logs (last 35 days, per session per day)
  *  - Pro plan limits recorded by scripts/statusline.mjs (data/claude-rate-limits.json)
  *
- * Run by hand with `npm run sync`, or let the status line script run it in the
- * background (at most every 5 minutes).
+ * Run by hand with `npm run sync`. The status line script runs it in the background when
+ * your limits change (at most once a minute) or every 5 minutes, and the SessionEnd hook
+ * runs it with --detach when you close Claude Code.
+ *
+ * --quiet   print nothing on success
+ * --detach  start itself in the background and return at once (for hooks)
  *
  * Needs DASHBOARD_URL and INGEST_SECRET, from the environment or this repo's .env.local.
  * Optional MACHINE_NAME (default: this computer's hostname).
  */
+import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import os from "node:os";
 import { dirname, join } from "node:path";
@@ -63,7 +68,12 @@ async function main() {
       `${rateLimits ? " and plan limits" : ""} as "${machine}".`);
 }
 
-main().catch((err) => {
-  console.error(`sync-claude: ${err.message}`);
-  process.exit(1);
-});
+if (process.argv.includes("--detach")) {
+  // Claude Code may stop a hook once it exits; a detached child keeps running.
+  spawn(process.execPath, [fileURLToPath(import.meta.url), "--quiet"], { detached: true, stdio: "ignore" }).unref();
+} else {
+  main().catch((err) => {
+    console.error(`sync-claude: ${err.message}`);
+    process.exit(1);
+  });
+}

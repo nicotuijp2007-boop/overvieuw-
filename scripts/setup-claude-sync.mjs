@@ -4,7 +4,8 @@
  *   1. writes DASHBOARD_URL / INGEST_SECRET / MACHINE_NAME to this repo's .env.local
  *   2. points Claude Code's status line at scripts/statusline.mjs (~/.claude/settings.json,
  *      backed up first; an existing status line command keeps working, chained after `--`)
- *   3. runs a test sync
+ *   3. adds a SessionEnd hook that sends the last numbers when you close Claude Code
+ *   4. runs a test sync
  *
  * Usage:
  *   node scripts/setup-claude-sync.mjs --url https://your-site.netlify.app --secret <INGEST_SECRET> [--name laptop]
@@ -18,6 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const STATUSLINE = join(ROOT, "scripts", "statusline.mjs");
+const SYNC = join(ROOT, "scripts", "sync-claude.mjs");
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);
@@ -83,10 +85,21 @@ if (existing && !existing.includes("statusline.mjs")) {
   command = existing.includes(" -- ") ? `${ours} -- ${existing.split(" -- ").slice(1).join(" -- ")}` : ours;
 }
 settings.statusLine = { ...(settings.statusLine ?? {}), type: "command", command };
-writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
 console.log(`✓ Status line ingesteld in ${settingsPath}`);
 
-// 3. Test sync.
+// 3. SessionEnd hook: sync once more when Claude Code closes. Replaces an earlier one of ours.
+const hook = { type: "command", command: `node "${SYNC}" --detach` };
+const isOurs = (h) => typeof h?.command === "string" && h.command.includes("sync-claude.mjs");
+settings.hooks ??= {};
+const groups = (settings.hooks.SessionEnd ?? [])
+  .map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !isOurs(h)) }))
+  .filter((g) => g.hooks.length > 0);
+groups.push({ hooks: [hook] });
+settings.hooks.SessionEnd = groups;
+writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+console.log(`✓ SessionEnd-hook ingesteld: synchroniseert ook als je Claude Code afsluit`);
+
+// 4. Test sync.
 console.log("… testsync naar het dashboard");
 const res = spawnSync(process.execPath, [join(ROOT, "scripts", "sync-claude.mjs")], { encoding: "utf8" });
 process.stdout.write(res.stdout ?? "");
@@ -96,4 +109,5 @@ if (res.status !== 0) {
 }
 console.log(`
 ✓ Klaar. Start Claude Code (opnieuw) en stuur één bericht: daarna staan je sessie- en weekpercentages
-  op het dashboard. Daarna synchroniseert het vanzelf, hooguit elke 5 minuten zolang je Claude Code gebruikt.`);
+  op het dashboard. Daarna synchroniseert het vanzelf: binnen een minuut als je percentages veranderen,
+  anders elke 5 minuten zolang je Claude Code gebruikt, en nog één keer als je Claude Code afsluit.`);

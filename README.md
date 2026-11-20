@@ -147,7 +147,8 @@ which the Netlify card's estimate doesn't include.
 The scripts need only Node.js 20+ (no `npm install`). Quickest: clone the repo, then run
 the setup script from its folder. It writes `.env.local`, points Claude Code's status line
 at `scripts/statusline.mjs` (backing up `~/.claude/settings.json` first and keeping any
-status line you already have), and runs a test sync:
+status line you already have), adds a `SessionEnd` hook that syncs when you close Claude
+Code, and runs a test sync. Running it again is safe; it doesn't add the hook twice:
 
 ```bash
 node scripts/setup-claude-sync.mjs --url https://your-site.netlify.app --secret <INGEST_SECRET> --name laptop
@@ -256,9 +257,10 @@ There's no API for Pro plan usage, so the Claude card is filled from your comput
 
 **1. Session (5-hour) and weekly limits, via the status line.** Claude Code passes these (as
 a %, with reset times) to your [status line](https://code.claude.com/docs/en/statusline)
-command. `scripts/statusline.mjs` saves them and starts the sync in the background, at
-most every 5 minutes. Add this to `~/.claude/settings.json`, using the absolute path to
-this repo on that computer:
+command. `scripts/statusline.mjs` saves them and starts the sync in the background: within
+a minute when the percentages change, otherwise every 5 minutes (for token usage). A
+`SessionEnd` hook sends the last numbers once more when you close Claude Code. Add this to
+`~/.claude/settings.json`, using the absolute path to this repo on that computer:
 
 ```json
 {
@@ -274,6 +276,17 @@ have a status line command, keep it by putting it after `--`:
 
 ```json
 "command": "node /absolute/path/to/overvieuw-/scripts/statusline.mjs -- ~/.claude/my-statusline.sh"
+```
+
+And the hook that syncs when Claude Code closes (`--detach` returns at once, so closing
+isn't slowed down):
+
+```json
+"hooks": {
+  "SessionEnd": [
+    { "hooks": [{ "type": "command", "command": "node /absolute/path/to/overvieuw-/scripts/sync-claude.mjs --detach" }] }
+  ]
+}
 ```
 
 **2. Claude Code token usage, from local logs.** The sync reads
