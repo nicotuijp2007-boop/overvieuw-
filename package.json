@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "sync": "node scripts/sync-claude.mjs",
     "setup-sync": "node scripts/setup-claude-sync.mjs",
-    "test:widget": "node --check widgets/scriptable/usage-widget.js && node --test widgets/scriptable/usage-widget.test.mjs"
+    "test:widget": "node --check widgets/scriptable/usage-widget.js && node --test widgets/scriptable/usage-widget.test.mjs",
+    "check": "tsc --noEmit && npm run test:widget && next build"
   },
   "dependencies": {
     "next": "^16.4.6",

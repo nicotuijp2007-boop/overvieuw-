@@ -140,7 +140,8 @@ for (const family of ["small", "medium", "large", "accessoryRectangular", "acces
     if (family === "large") {
       assert.equal(symbols.length, fixture.limits.length);
       assert.ok(all.includes(fixture.summary.headline));
-      assert.ok(all.some((t) => /^Bijgewerkt \d\d:\d\d$/.test(t)));
+      // "Bijgewerkt 14:02" today, "Bijgewerkt 11 nov 14:02" on another day (the fixture has a fixed date).
+      assert.ok(all.some((t) => /^Bijgewerkt (\d{1,2} \S+ )?\d\d:\d\d$/.test(t)), `footer: ${all}`);
       assert.ok(all.some((t) => t.includes("niet ververst")), "stale limit marked");
     }
     if (family === "accessoryCircular") assert.ok(tree.addAccessoryWidgetBackground);

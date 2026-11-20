@@ -9,11 +9,16 @@ interface Props {
   entries: ManualEntry[];
   /** Known metric names per service (from limits.config.ts), suggested in the form. */
   metricNames: Record<string, string[]>;
+  /**
+   * False in public mode (DASHBOARD_PUBLIC) when not logged in: the saved values are shown,
+   * but there's no form or delete button, only an explanation and a login link.
+   */
+  canEdit?: boolean;
 }
 
 const input = "w-full rounded-xl border border-[var(--glass-line)] bg-input-bg px-2.5 py-1.5 text-sm";
 
-export function ManualForm({ services, entries, metricNames }: Props) {
+export function ManualForm({ services, entries, metricNames, canEdit = true }: Props) {
   const details = useRef<HTMLDetailsElement>(null);
   const [service, setService] = useState(services[0]?.id ?? "");
 
@@ -58,12 +63,18 @@ export function ManualForm({ services, entries, metricNames }: Props) {
         <span>
           <span className="font-semibold">Handmatige waarden</span>
           <span className="ml-2 text-sm text-muted">
-            {entries.length ? `${entries.length} opgeslagen` : "voor cijfers zonder API, zoals Supabase-egress"}
+            {entries.length
+              ? `${entries.length} opgeslagen`
+              : canEdit
+                ? "voor cijfers zonder API, zoals Supabase-egress"
+                : "geen opgeslagen waarden"}
           </span>
         </span>
         <span aria-hidden className="text-muted transition-transform group-open:rotate-180">▾</span>
       </summary>
       <div className="border-t border-[var(--glass-line)] px-5 pb-5 pt-4">
+        {canEdit ? (
+          <>
         <p className="text-sm text-muted">
           Dezelfde dienst + naam opnieuw opslaan werkt de waarde bij. Opgeslagen in je Supabase-database.
         </p>
@@ -113,6 +124,15 @@ export function ManualForm({ services, entries, metricNames }: Props) {
             {error && <span className="ml-3 text-sm text-danger-text" role="alert">{error}</span>}
           </div>
         </form>
+          </>
+        ) : (
+          <p className="text-sm text-secondary">
+            Alleen-lezen: dit dashboard is openbaar te bekijken, maar wijzigen kan alleen na inloggen.{" "}
+            <a href="/login" className="font-medium text-accent hover:underline">
+              Inloggen
+            </a>
+          </p>
+        )}
 
         {entries.length > 0 && (
           <ul className="mt-5 divide-y divide-grid text-sm">
@@ -122,15 +142,17 @@ export function ManualForm({ services, entries, metricNames }: Props) {
                   <span className="text-muted">{nameOf(e.service)} ·</span> {e.metric}: {e.used.toLocaleString("nl-NL")}
                   {e.limit != null && ` / ${e.limit.toLocaleString("nl-NL")}`} {e.unit}
                 </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    send({ method: "DELETE" }, `?service=${encodeURIComponent(e.service)}&metric=${encodeURIComponent(e.metric)}`)
-                  }
-                  className="text-xs font-medium text-muted hover:text-danger-text"
-                >
-                  Verwijderen
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      send({ method: "DELETE" }, `?service=${encodeURIComponent(e.service)}&metric=${encodeURIComponent(e.metric)}`)
+                    }
+                    className="text-xs font-medium text-muted hover:text-danger-text"
+                  >
+                    Verwijderen
+                  </button>
+                )}
               </li>
             ))}
           </ul>

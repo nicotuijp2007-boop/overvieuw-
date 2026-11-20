@@ -25,7 +25,18 @@ function cardFreshness(r: ServiceResult): { at: string; source: Source } {
  * Per service: one status line, its figures without a limit (tokens, deploys...), and a light
  * warning when the source failed. The service's limits are in the list above.
  */
-export function ServiceCard({ result, limits, now }: { result: ServiceResult; limits: Headroom[]; now: number }) {
+export function ServiceCard({
+  result,
+  limits,
+  now,
+  canEdit = true,
+}: {
+  result: ServiceResult;
+  limits: Headroom[];
+  now: number;
+  /** False in public mode when not logged in: no link to manual entry. */
+  canEdit?: boolean;
+}) {
   const info = result.metrics.filter((m) => m.limit == null);
   const worst = order.find((l) => limits.some((h) => h.level === l));
   const fresh = cardFreshness(result);
@@ -82,9 +93,11 @@ export function ServiceCard({ result, limits, now }: { result: ServiceResult; li
             <p className="mt-1 break-words">{result.error}</p>
           </details>
           <p className="mt-1 flex flex-wrap gap-x-3">
-            <a href="#handmatig" className="font-medium text-accent hover:underline">
-              Handmatig invullen
-            </a>
+            {canEdit && (
+              <a href="#handmatig" className="font-medium text-accent hover:underline">
+                Handmatig invullen
+              </a>
+            )}
             <a href={HELP_URL} target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
               Uitleg tokens
             </a>
@@ -107,7 +120,11 @@ export function ServiceCard({ result, limits, now }: { result: ServiceResult; li
       )}
       {!result.error && info.length === 0 && n === 0 && (
         <p className="mt-3 text-sm text-muted">
-          {result.hasConnector ? "Geen cijfers ontvangen." : "Nog geen koppeling. Vul waarden in onder Handmatige waarden."}
+          {result.hasConnector
+            ? "Geen cijfers ontvangen."
+            : canEdit
+              ? "Nog geen koppeling. Vul waarden in onder Handmatige waarden."
+              : "Nog geen koppeling."}
         </p>
       )}
 

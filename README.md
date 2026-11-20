@@ -125,6 +125,20 @@ Wachtwoord vergeten? Stel een nieuw in via Supabase → Authentication → Users
 uitloggen: verander `SESSION_SECRET` (en deploy). Iemand de toegang ontnemen: haal het adres uit
 `DASHBOARD_ALLOWED_EMAILS`; een bestaande cookie werkt dan direct niet meer.
 
+#### Openbaar maken (zonder login)
+
+Zet `DASHBOARD_PUBLIC=true` (Netlify → Site configuration → Environment variables) en deploy.
+
+- **Bekijken kan zonder login:** alle pagina's en GET-verzoeken, ook `/api/usage` en de
+  Details-pagina.
+- **Wijzigen niet:** POST/PUT/PATCH/DELETE (bijv. handmatige waarden opslaan of verwijderen)
+  vragen nog steeds een login of `DASHBOARD_PASSWORD`. Wie niet is ingelogd, ziet geen knop
+  **Uitloggen**, geen invoerformulier en geen **Verwijderen**-knoppen, maar een korte uitleg met
+  een link naar **Inloggen**. Ingelogd zie je alles zoals altijd.
+- **Let op:** iedereen met de link ziet dan je verbruik, en op de Details-pagina de namen van je
+  computers en projectmappen.
+- Weer achter de login: haal `DASHBOARD_PUBLIC` weg (of zet hem op iets anders dan `true`) en deploy.
+
 Page loads also use a little of your Netlify credits (function compute and requests),
 which the Netlify card's estimate doesn't include.
 

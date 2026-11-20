@@ -8,8 +8,9 @@ import { formatDateTime, type Level } from "@/lib/format";
 import { series } from "@/lib/history";
 import { limitsView } from "@/lib/present";
 import { fetchDashboard } from "@/lib/runner";
-import { SESSION_COOKIE, verifySession } from "@/lib/session";
-import { cookies } from "next/headers";
+import { authenticate, isPublic } from "@/lib/auth";
+import { SESSION_COOKIE } from "@/lib/session";
+import { cookies, headers } from "next/headers";
 
 // Always fetch fresh data on load / refresh.
 export const dynamic = "force-dynamic";
@@ -20,10 +21,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const { status } = await searchParams;
   const filter = LEVELS.find((l) => l === status);
 
-  const [{ results, manual }, signedInAs] = await Promise.all([
+  const [{ results, manual }, auth] = await Promise.all([
     fetchDashboard(),
-    cookies().then((c) => verifySession(c.get(SESSION_COOKIE)?.value)),
+    Promise.all([cookies(), headers()]).then(([c, h]) => authenticate(c.get(SESSION_COOKIE)?.value, h.get("authorization"))),
   ]);
+  const signedInAs = auth?.email ?? null;
+  // In public mode, visitors who aren't logged in can look but not change anything.
+  const publicMode = isPublic();
+  const canEdit = !publicMode || auth !== null;
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
@@ -62,6 +67,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
               </button>
             </form>
           )}
+          {publicMode && !auth && (
+            <a href="/login" className="glass rounded-full px-4 py-1.5 text-sm font-medium text-secondary hover:border-accent">
+              Inloggen
+            </a>
+          )}
         </div>
       </header>
 
@@ -73,11 +83,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       <h2 className="mt-10 mb-3 px-1 text-lg font-semibold">Diensten</h2>
       <div className="grid gap-4 md:grid-cols-3">
         {results.map((r) => (
-          <ServiceCard key={r.id} result={r} limits={limitsByService.get(r.id) ?? []} now={now} />
+          <ServiceCard key={r.id} result={r} limits={limitsByService.get(r.id) ?? []} now={now} canEdit={canEdit} />
         ))}
       </div>
 
-      <ManualForm services={serviceOptions} entries={manual} metricNames={metricNames} />
+      <ManualForm services={serviceOptions} entries={manual} metricNames={metricNames} canEdit={canEdit} />
     </main>
   );
 }
